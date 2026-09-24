@@ -1,19 +1,24 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
+import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 import { Text } from '@/components/typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@/constants/artiz';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 const AuthFieldFocusContext = createContext<((input: TextInput) => void) | null>(null);
+const logo = require('../../assets/artiz/logo-2026.png');
+
+export function Logo({ width = 220 }: { width?: number }) {
+  return <View style={{ width, height: width * 0.68, overflow: 'hidden', backgroundColor: colors.white }} accessibilityLabel="Artiz">
+    <Image source={logo} resizeMode="contain" style={{ position: 'absolute', width: width * 1.25, height: width * 1.25, left: -width * 0.12, top: -width * 0.29 }} />
+  </View>;
+}
 
 export function Brand({ small = false }: { small?: boolean }) {
-  return <Pressable onPress={() => router.replace('/home')} accessibilityRole="button" accessibilityLabel="Artiz, accueil" style={styles.brandWrap}>
-    <Text style={[styles.brand, small && styles.brandSmall]}>Artız</Text>
-    {!small && <Text style={styles.tagline}>Des talents bien réels</Text>}
-    <View style={[styles.brandDot, small && { left: 42, top: 2 }]} />
+  return <Pressable onPress={() => router.replace(small ? '/home' : '/')} accessibilityRole="button" accessibilityLabel="Artiz, accueil" style={[styles.brandWrap, small && styles.brandWrapSmall]}>
+    <Logo width={small ? 82 : 220} />
   </Pressable>;
 }
 
@@ -114,7 +119,7 @@ export function AuthScreen({ children }: { children: ReactNode }) {
 
   return (
     <AuthFieldFocusContext.Provider value={onFieldFocus}>
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={styles.authSafe}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView
             ref={scrollRef}
@@ -172,14 +177,12 @@ export function Avatar({ name, size = 44 }: { name: string; size?: number }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  authSafe: { flex: 1, backgroundColor: colors.white },
   header: { backgroundColor: colors.white, borderBottomColor: colors.border, borderBottomWidth: 1, zIndex: 1 },
   headerTop: { height: 60, maxWidth: 820, width: '100%', alignSelf: 'center', paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  brandWrap: { position: 'relative', alignSelf: 'flex-start' },
-  brand: { color: colors.blue, fontSize: 44, fontWeight: '800', letterSpacing: -3, lineHeight: 48 },
-  brandSmall: { fontSize: 34, lineHeight: 38 },
-  brandDot: { position: 'absolute', width: 9, height: 9, borderRadius: radius.full, backgroundColor: colors.orange, top: 3, left: 54 },
-  tagline: { fontSize: 11, color: colors.navy, letterSpacing: 1.1, marginTop: -4 },
+  brandWrap: { alignSelf: 'center' },
+  brandWrapSmall: { alignSelf: 'flex-start' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: colors.orange, right: 8, top: 7, borderWidth: 1, borderColor: colors.white },
   navRow: { height: 64, maxWidth: 820, width: '100%', alignSelf: 'center', flexDirection: 'row', paddingHorizontal: spacing.sm, borderTopWidth: 1, borderTopColor: colors.divider },
@@ -192,7 +195,7 @@ const styles = StyleSheet.create({
   content: { maxWidth: 680, width: '100%', alignSelf: 'center', padding: spacing.lg, gap: spacing.xxl },
   screenTitle: { fontSize: 26, lineHeight: 32, fontWeight: '700', color: colors.navy, marginTop: 4 },
   subtitle: { fontSize: 15, color: colors.muted, lineHeight: 22, marginTop: -12 },
-  authScroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },
+  authScroll: { flexGrow: 1, justifyContent: 'center', padding: 20, backgroundColor: colors.white },
   authContent: { maxWidth: 470, width: '100%', alignSelf: 'center', gap: 16, paddingVertical: 24 },
   primaryButton: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.blue, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: spacing.md },
   accentButton: { backgroundColor: colors.orange },

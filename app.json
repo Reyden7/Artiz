@@ -4,30 +4,30 @@
     "slug": "artiz",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/artiz/icon-v2.png",
+    "icon": "./assets/artiz/logo-2026.png",
     "scheme": "artiz",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/artiz/icon-v2.png"
+      "icon": "./assets/artiz/logo-2026.png"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#F7F9FB",
-        "foregroundImage": "./assets/artiz/icon-v2.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/artiz/logo-2026.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/artiz/icon-v2.png"
+      "favicon": "./assets/artiz/logo-2026.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F7F9FB",
-          "image": "./assets/artiz/icon-v2.png",
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/artiz/logo-2026.png",
           "imageWidth": 180
         }
       ]

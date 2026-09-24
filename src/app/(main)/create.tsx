@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/typography';
 import { MainScreen, Field, PrimaryButton } from '@/components/artiz-ui';
@@ -20,8 +19,8 @@ export default function CreateScreen() {
       <Field label="Titre" value={title} onChangeText={setTitle} placeholder={kind === 'work' ? 'Titre de votre réalisation' : 'Titre de votre projet'} />
       <Field label="Description" value={description} onChangeText={setDescription} placeholder="Décrivez en quelques mots…" multiline maxLength={2000} />
       <Field label="Ville" value={city} onChangeText={setCity} placeholder="Votre ville" />
-      <PrimaryButton title="Continuer" icon="arrow-forward" onPress={() => router.push('/login')} disabled={!title.trim() || !description.trim() || !city.trim()} />
-      <Text style={styles.hint}>Connectez-vous pour publier. Les droits professionnels seront vérifiés côté serveur.</Text>
+      <PrimaryButton title="Continuer" icon="arrow-forward" onPress={() => Alert.alert('Publication indisponible', 'L’envoi des publications sera disponible lorsque ce service sera activé.')} disabled={!title.trim() || !description.trim() || !city.trim()} />
+      <Text style={styles.hint}>Les droits professionnels seront vérifiés côté serveur avant publication.</Text>
     </View>
   </MainScreen>;
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/typography';
 import { AuthScreen, Brand, Field, PrimaryButton } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
@@ -16,7 +16,7 @@ export default function LoginScreen() {
     setBusy(true); setMessage('');
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setBusy(false);
-    if (error) setMessage(error.message); else router.replace('/profile');
+    if (error) setMessage(error.message); else router.replace('/home');
   }
   return <AuthScreen>
     <View style={styles.center}><Brand /><Text style={styles.title}>Bienvenue sur Artiz</Text><Text style={styles.subtitle}>Découvrez des artisans, partagez vos réalisations et échangez facilement.</Text></View>
@@ -25,8 +25,7 @@ export default function LoginScreen() {
     {message ? <Text style={styles.message}>{message}</Text> : null}
     <PrimaryButton title={busy ? 'Connexion…' : 'Se connecter'} onPress={signIn} disabled={busy || !email.trim() || !password} />
     <Text style={styles.bottom}>Pas encore de compte ? <Text style={styles.link} onPress={() => router.push('/register')}>S’inscrire</Text></Text>
-    <Pressable onPress={() => router.replace('/home')}><Text style={styles.skip}>Découvrir Artiz sans compte</Text></Pressable>
   </AuthScreen>;
 }
 
-const styles = StyleSheet.create({ center: { alignItems: 'center', gap: 8, paddingBottom: 8 }, title: { color: colors.navy, fontSize: 26, fontWeight: '700', textAlign: 'center', marginTop: 12 }, subtitle: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' }, message: { color: colors.red, backgroundColor: colors.pale, padding: 12, borderRadius: 8 }, bottom: { color: colors.navy, textAlign: 'center' }, link: { color: colors.blue, fontWeight: '700' }, skip: { color: colors.muted, textAlign: 'center', fontSize: 14 } });
+const styles = StyleSheet.create({ center: { alignItems: 'center', gap: 8, paddingBottom: 8 }, title: { color: colors.navy, fontSize: 26, fontWeight: '700', textAlign: 'center', marginTop: 12 }, subtitle: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' }, message: { color: colors.red, backgroundColor: colors.pale, padding: 12, borderRadius: 8 }, bottom: { color: colors.navy, textAlign: 'center' }, link: { color: colors.blue, fontWeight: '700' } });

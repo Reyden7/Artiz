@@ -19,7 +19,7 @@ export default function QuoteScreen() {
       <Field label="Ville du projet *" value={city} onChangeText={setCity} placeholder="Ville ou code postal" />
       <Field label="Décrivez votre besoin *" value={details} onChangeText={setDetails} placeholder="Dimensions, style, matériaux souhaités…" multiline maxLength={800} />
       <Text style={styles.counter}>{details.length} / 800</Text>
-      <PrimaryButton title="Envoyer ma demande" icon="paper-plane-outline" disabled={!id || !project.trim() || !city.trim() || !details.trim()} onPress={() => Alert.alert('Connexion nécessaire', 'Connectez-vous pour continuer.', [{ text: 'Se connecter', onPress: () => router.push('/login') }])} />
+      <PrimaryButton title="Envoyer ma demande" icon="paper-plane-outline" disabled={!id || !project.trim() || !city.trim() || !details.trim()} onPress={() => Alert.alert('Envoi indisponible', 'L’envoi des demandes de devis sera disponible lorsque ce service sera activé.')} />
       <Text style={styles.privacy}>La demande sera adressée au professionnel que vous aurez choisi.</Text>
     </View>
   </AppScreen>;

@@ -10,9 +10,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(Boolean(supabase));
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setLoading(false); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => { setSession(nextSession); setLoading(false); });
-    return () => subscription.unsubscribe();
+    const client = supabase;
+    let active = true;
+    let restored = false;
+    const { data: { subscription } } = client.auth.onAuthStateChange((event, nextSession) => {
+      if (!active || !restored || event === 'INITIAL_SESSION') return;
+      setSession(nextSession);
+    });
+    async function restoreSession() {
+      try {
+        const { data: { session: storedSession } } = await client.auth.getSession();
+        if (!storedSession) return;
+        // A cached session does not prove the account is still valid.
+        const { data: { user }, error } = await client.auth.getUser();
+        if (active && !error && user) setSession({ ...storedSession, user });
+      } finally {
+        restored = true;
+        if (active) setLoading(false);
+      }
+    }
+    restoreSession().catch(() => { restored = true; if (active) setLoading(false); });
+    return () => { active = false; subscription.unsubscribe(); };
   }, []);
   return <AuthContext.Provider value={{ session, loading }}>{children}</AuthContext.Provider>;
 }

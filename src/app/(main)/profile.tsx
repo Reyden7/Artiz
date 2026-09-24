@@ -9,7 +9,7 @@ import { supabase } from '@/services/supabase/client';
 export default function ProfileScreen() {
   const { session } = useAuth();
   return <MainScreen title="Mon profil">
-    <View style={styles.card}><Avatar name={session?.user.user_metadata?.display_name ?? 'Artiz'} size={76} /><Text style={styles.title}>{session ? (session.user.user_metadata?.display_name ?? 'Mon compte') : 'Bienvenue sur Artiz'}</Text><Text style={styles.meta}>{session ? session.user.email : 'Connectez-vous pour retrouver vos favoris, vos messages et votre réseau.'}</Text>{session ? <PrimaryButton title="Se déconnecter" onPress={() => supabase?.auth.signOut()} outline /> : <><PrimaryButton title="Se connecter" onPress={() => router.push('/login')} /><PrimaryButton title="Créer un compte" onPress={() => router.push('/register')} outline /></>}</View>
+    <View style={styles.card}><Avatar name={session?.user.user_metadata?.display_name ?? 'Artiz'} size={76} /><Text style={styles.title}>{session?.user.user_metadata?.display_name ?? 'Mon compte'}</Text><Text style={styles.meta}>{session?.user.email}</Text><PrimaryButton title="Se déconnecter" onPress={() => supabase?.auth.signOut()} outline /></View>
     <SectionTitle title="À découvrir" />
     <Pressable style={styles.row} onPress={() => router.push('/explore')}><Text style={styles.rowText}>Explorer les artisans</Text><Text style={styles.arrow}>›</Text></Pressable>
   </MainScreen>;
