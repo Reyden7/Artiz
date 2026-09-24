@@ -336,6 +336,7 @@ export type Database = {
           id: string
           in_portfolio: boolean
           status: string
+          title: string
           updated_at: string
           visibility: string
         }
@@ -348,6 +349,7 @@ export type Database = {
           id?: string
           in_portfolio?: boolean
           status?: string
+          title: string
           updated_at?: string
           visibility?: string
         }
@@ -360,6 +362,7 @@ export type Database = {
           id?: string
           in_portfolio?: boolean
           status?: string
+          title?: string
           updated_at?: string
           visibility?: string
         }

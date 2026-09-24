@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/typography';
 import { AuthScreen, Brand, Field, PrimaryButton } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
+import { completePendingProfessionalRegistration, getPendingProfessionalRegistration } from '@/features/auth/professional-registration';
 import { supabase } from '@/services/supabase/client';
 
 export default function LoginScreen() {
@@ -14,9 +15,24 @@ export default function LoginScreen() {
   async function signIn() {
     if (!supabase) { setMessage('Ajoutez les variables Supabase dans .env pour activer la connexion.'); return; }
     setBusy(true); setMessage('');
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setBusy(false);
-    if (error) setMessage(error.message); else router.replace('/home');
+    try {
+      const { error, data } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) { setMessage(error.message); return; }
+      const pending = await getPendingProfessionalRegistration(data.user?.email);
+      if (pending) {
+        try {
+          await completePendingProfessionalRegistration(data.user?.email);
+        } catch (registrationError) {
+          Alert.alert('Inscription professionnelle', registrationError instanceof Error
+            ? registrationError.message : 'La vérification du SIRET a échoué.');
+        }
+      }
+      router.replace(pending ? '/profile' : '/home');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Connexion temporairement indisponible.');
+    } finally {
+      setBusy(false);
+    }
   }
   return <AuthScreen>
     <View style={styles.center}><Brand /><Text style={styles.title}>Bienvenue sur Artiz</Text><Text style={styles.subtitle}>Découvrez des artisans, partagez vos réalisations et échangez facilement.</Text></View>

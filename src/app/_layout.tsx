@@ -24,6 +24,8 @@ function AppNavigator() {
       <Stack.Screen name="quote" />
       <Stack.Screen name="professional/[id]" />
       <Stack.Screen name="conversation/[id]" />
+      <Stack.Screen name="admin/professionals" />
+      <Stack.Screen name="requests" />
     </Stack.Protected>
   </Stack>;
 }

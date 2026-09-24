@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/typography';
 import { AuthScreen, Brand, Field, PrimaryButton } from '@/components/artiz-ui';
 import { AccountType, colors } from '@/constants/artiz';
+import { completeProfessionalRegistration, savePendingProfessionalRegistration } from '@/features/auth/professional-registration';
 import { supabase } from '@/services/supabase/client';
 
 export default function RegisterScreen() {
@@ -22,14 +23,32 @@ export default function RegisterScreen() {
     if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) { setMessage('Le mot de passe doit contenir 8 caractères, une lettre et un chiffre.'); return; }
     if (password !== confirm) { setMessage('Les mots de passe ne correspondent pas.'); return; }
     if (!accepted) { setMessage('Acceptez les conditions pour continuer.'); return; }
-    if (type === 'professional') { setMessage('La vérification du SIRET côté serveur est nécessaire avant l’ouverture des comptes professionnels. Ce parcours sera activé avec le backend sécurisé.'); return; }
+    if (type === 'professional' && (!/^\d{14}$/.test(siret) || business.trim().length < 2)) {
+      setMessage('Renseignez un nom commercial et un SIRET de 14 chiffres.'); return;
+    }
     if (!supabase) { setMessage('Ajoutez les variables Supabase dans .env pour activer l’inscription.'); return; }
     setBusy(true); setMessage('');
-    const { error, data } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { display_name: name.trim() } } });
-    setBusy(false);
-    if (error) setMessage(error.message);
-    else if (!data.session) setMessage('Vérifiez votre boîte e-mail pour confirmer votre inscription.');
-    else router.replace('/profile');
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const { error, data } = await supabase.auth.signUp({
+        email: normalizedEmail, password, options: { data: { display_name: name.trim() } },
+      });
+      if (error) { setMessage(error.message); return; }
+      if (type === 'professional') {
+        const pending = { email: normalizedEmail, businessName: business.trim(), siret };
+        await savePendingProfessionalRegistration(pending);
+        if (data.session) await completeProfessionalRegistration(pending);
+      }
+      if (!data.session) {
+        setMessage(type === 'professional'
+          ? 'Confirmez votre e-mail puis connectez-vous. Votre demande professionnelle sera vérifiée après connexion.'
+          : 'Vérifiez votre boîte e-mail pour confirmer votre inscription.');
+      } else router.replace('/profile');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Inscription temporairement indisponible.');
+    } finally {
+      setBusy(false);
+    }
   }
   return <AuthScreen>
     <View style={styles.center}><Brand /><Text style={styles.title}>Créer un compte</Text><Text style={styles.subtitle}>Rejoignez le réseau des talents locaux.</Text></View>
@@ -39,7 +58,7 @@ export default function RegisterScreen() {
     <Field label="Adresse e-mail" value={email} onChangeText={setEmail} placeholder="Votre adresse e-mail" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
     <Field label="Mot de passe" value={password} onChangeText={setPassword} placeholder="8 caractères, une lettre et un chiffre" secureTextEntry autoComplete="new-password" />
     <Field label="Confirmer le mot de passe" value={confirm} onChangeText={setConfirm} placeholder="Confirmez votre mot de passe" secureTextEntry />
-    {type === 'professional' && <><Field label="Nom commercial" value={business} onChangeText={setBusiness} placeholder="Nom de votre entreprise" /><Field label="Numéro de SIRET" value={siret} onChangeText={setSiret} placeholder="14 chiffres" keyboardType="number-pad" maxLength={14} /><Text style={styles.roleHelp}>Le SIRET sera contrôlé par un service sécurisé avant toute activation professionnelle.</Text></>}
+    {type === 'professional' && <><Field label="Nom commercial" value={business} onChangeText={setBusiness} placeholder="Nom de votre entreprise" /><Field label="Numéro de SIRET" value={siret} onChangeText={setSiret} placeholder="14 chiffres" keyboardType="number-pad" maxLength={14} /><Text style={styles.roleHelp}>Le SIRET est contrôlé côté serveur. Le profil reste en attente de vérification avant de pouvoir publier ou répondre aux demandes.</Text></>}
     <Pressable style={styles.consent} onPress={() => setAccepted(!accepted)} accessibilityRole="checkbox" accessibilityState={{ checked: accepted }}><Ionicons name={accepted ? 'checkbox' : 'square-outline'} size={23} color={colors.blue} /><Text style={styles.consentText}>J’accepte les conditions d’utilisation et la politique de confidentialité.</Text></Pressable>
     {message ? <Text style={styles.message}>{message}</Text> : null}
     <PrimaryButton title={busy ? 'Création…' : 'Créer mon compte'} icon="arrow-forward" onPress={signUp} disabled={busy || !name.trim() || !email.trim() || !password || !confirm || (type === 'professional' && (!business.trim() || siret.length !== 14))} />

@@ -20,7 +20,7 @@ EXPO_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
 ```
 
-La connexion par e-mail utilise Supabase Auth. L’inscription particulier crée automatiquement un profil `customer` grâce à un trigger SQL. L’inscription professionnel reste bloquée dans l’application jusqu’à la mise en place de la vérification du SIRET côté serveur. Aucun droit professionnel n’est accordé depuis les données du client.
+La connexion par e-mail utilise Supabase Auth. L’inscription particulier crée automatiquement un profil `customer`. Pour un professionnel, le nom commercial et le SIRET sont obligatoires. Le serveur contrôle le SIRET dans le registre officiel, crée un profil `professional` en attente et initialise le plan `FREE`. Aucun droit professionnel n’est accordé depuis les données du client. L’administrateur examine ensuite manuellement le SIRET et valide ou refuse le compte ; aucun document supplémentaire n’est demandé.
 
 La base du projet Artiz contient maintenant les migrations versionnées dans [`supabase/migrations`](supabase/migrations) : 22 tables publiques avec RLS, une table privée pour les SIRET, et quatre buckets Storage privés. Les types de la base sont générés dans [`src/services/supabase/database.types.ts`](src/services/supabase/database.types.ts). Voir [`supabase/README.md`](supabase/README.md) pour le modèle d’accès et le déploiement.
 
@@ -28,10 +28,10 @@ La base du projet Artiz contient maintenant les migrations versionnées dans [`s
 
 - Navigation principale **en haut** et thème visuel inspiré des maquettes.
 - Écrans : accueil, découverte, publication, réseau, profil, messages, notifications, connexion, inscription, profil professionnel, conversation et demande de devis.
-- Les écrans ne contiennent plus de faux comptes ni de fausses publications. La découverte des professionnels, le fil des réalisations, les demandes de devis et les conversations lisent ou écrivent désormais dans Supabase. Les likes, favoris et suivis restent à relier.
+- Les écrans ne contiennent plus de faux comptes ni de fausses publications. La découverte des professionnels, le fil paginé des réalisations, les demandes de devis, les besoins particuliers et les conversations lisent ou écrivent désormais dans Supabase. Les professionnels validés peuvent publier des réalisations avec photos ; les particuliers peuvent publier des besoins avec photos. Les likes, favoris et suivis restent à relier.
 - Types distincts pour `account_type` et les futurs plans `FREE`, `PRO`, `PRO_PLUS`.
 
-Les prochaines phases activeront l’inscription professionnelle après vérification du SIRET côté serveur, puis l’envoi des médias et les autres interactions sociales. Les images de marque sous `assets/artiz/` servent à l’interface.
+La validation manuelle est disponible dans l’application pour les administrateurs. Un SIRET actif ne prouve pas à lui seul que le titulaire du compte représente l’entreprise : la décision revient à l’administrateur. Les images de marque sous `assets/artiz/` servent à l’interface.
 
 ## Vérification
 
