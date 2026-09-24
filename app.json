@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Artiz",
+    "slug": "artiz",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/artiz/icon.png",
+    "scheme": "artiz",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "icon": "./assets/artiz/icon.png"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#EDF6FA",
+        "foregroundImage": "./assets/artiz/icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/artiz/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#EDF6FA",
+          "image": "./assets/artiz/icon.png",
+          "imageWidth": 180
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

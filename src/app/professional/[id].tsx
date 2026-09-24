@@ -1,0 +1,24 @@
+import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppScreen, Avatar, PrimaryButton } from '@/components/artiz-ui';
+import { colors } from '@/constants/artiz';
+import { demoProfessionals } from '@/features/demo/data';
+
+export default function ProfessionalScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const pro = demoProfessionals.find((person) => person.id === id) ?? demoProfessionals[0];
+  const [tab, setTab] = useState<'work' | 'about' | 'reviews'>('work');
+  const [following, setFollowing] = useState(false);
+  return <AppScreen>
+    <Image source={pro.image} style={styles.cover} />
+    <View style={styles.profile}><View style={styles.identity}><Avatar name={pro.name} size={74} /><View style={{ flex: 1 }}><Text style={styles.name}>{pro.name} <Text style={{ color: colors.blue }}>✦</Text></Text><Text style={styles.job}>{pro.job} · Savoir-faire local</Text><Text style={styles.meta}>📍 {pro.city}     <Text style={{ color: colors.orange }}>★</Text> 4,9 (56 avis)</Text></View></View><Text style={styles.description}>{pro.bio}</Text><View style={styles.tags}>{pro.specialties.map((tag) => <Text key={tag} style={styles.tag}>{tag}</Text>)}</View><View style={styles.buttons}><View style={{ flex: 1 }}><PrimaryButton title="Contacter" icon="chatbubble-outline" onPress={() => router.push({ pathname: '/conversation/[id]', params: { id: pro.id } })} outline /></View><View style={{ flex: 1 }}><PrimaryButton title="Devis" icon="document-text-outline" onPress={() => router.push({ pathname: '/quote', params: { id: pro.id } })} /></View></View><Pressable onPress={() => setFollowing(!following)}><Text style={styles.follow}>{following ? `✓ Vous suivez ${pro.name.split(' ')[0]}` : `+ Suivre ${pro.name.split(' ')[0]}`}</Text></Pressable></View>
+    <View style={styles.stats}><Text style={styles.stat}><Text style={styles.statNumber}>48</Text>{'\n'}réalisations</Text><Text style={styles.stat}><Text style={styles.statNumber}>320</Text>{'\n'}abonnés</Text><Text style={styles.stat}><Text style={styles.statNumber}>127</Text>{'\n'}abonnements</Text></View>
+    <View style={styles.tabs}>{([['work', 'Réalisations'], ['about', 'À propos'], ['reviews', 'Avis (56)']] as const).map(([key, label]) => <Pressable key={key} style={[styles.tab, tab === key && styles.activeTab]} onPress={() => setTab(key)}><Text style={[styles.tabText, tab === key && styles.activeTabText]}>{label}</Text></Pressable>)}</View>
+    {tab === 'work' && <View style={styles.gallery}>{[pro.image, pro.image, pro.image, pro.image].map((photo, index) => <Image key={index} source={photo} style={styles.galleryImage} />)}</View>}
+    {tab === 'about' && <View style={styles.info}><Text style={styles.description}>{pro.bio}</Text><Text style={styles.meta}>Ville : {pro.city}</Text></View>}
+    {tab === 'reviews' && <View style={styles.info}><Text style={styles.name}>★ 4,9 / 5</Text><Text style={styles.description}>56 avis de clients. Les avis vérifiés seront affichés dès que le backend sera connecté.</Text></View>}
+  </AppScreen>;
+}
+
+const styles = StyleSheet.create({ cover: { width: '100%', height: 190, borderRadius: 18 }, profile: { backgroundColor: colors.white, borderRadius: 18, padding: 17, gap: 15, borderWidth: 1, borderColor: colors.border }, identity: { flexDirection: 'row', gap: 12, alignItems: 'center' }, name: { color: colors.navy, fontSize: 20, fontWeight: '800' }, job: { color: colors.muted, marginTop: 3 }, meta: { color: colors.muted, marginTop: 7, fontSize: 13 }, description: { color: colors.navy, lineHeight: 21, fontSize: 15 }, tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }, tag: { color: colors.blue, backgroundColor: colors.pale, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 20, fontSize: 12 }, buttons: { flexDirection: 'row', gap: 8 }, follow: { textAlign: 'center', color: colors.blue, fontWeight: '800' }, stats: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: colors.white, borderRadius: 14, padding: 16 }, stat: { textAlign: 'center', color: colors.muted, fontSize: 13 }, statNumber: { color: colors.navy, fontSize: 19, fontWeight: '800' }, tabs: { flexDirection: 'row', backgroundColor: colors.white, borderRadius: 13 }, tab: { flex: 1, alignItems: 'center', padding: 13, borderBottomWidth: 3, borderBottomColor: 'transparent' }, activeTab: { borderBottomColor: colors.blue }, tabText: { color: colors.muted, fontSize: 13 }, activeTabText: { color: colors.blue, fontWeight: '800' }, gallery: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 }, galleryImage: { width: '48.9%', height: 150, borderRadius: 10 }, info: { backgroundColor: colors.white, borderRadius: 14, padding: 20, gap: 10 } });
