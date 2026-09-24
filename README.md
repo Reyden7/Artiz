@@ -20,16 +20,18 @@ EXPO_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
 ```
 
-La connexion par e-mail fonctionne une fois Supabase Auth configuré. L’inscription particulier crée pour l’instant un utilisateur Auth ; la création du profil métier sera ajoutée avec la migration et les politiques RLS. L’inscription professionnel affiche les champs requis mais bloque l’envoi tant que la vérification serveur du SIRET et les règles RLS ne sont pas en place. Aucun droit professionnel n’est accordé depuis les données du client.
+La connexion par e-mail utilise Supabase Auth. L’inscription particulier crée automatiquement un profil `customer` grâce à un trigger SQL. L’inscription professionnel reste bloquée dans l’application jusqu’à la mise en place de la vérification du SIRET côté serveur. Aucun droit professionnel n’est accordé depuis les données du client.
+
+La base du projet Artiz contient maintenant les migrations versionnées dans [`supabase/migrations`](supabase/migrations) : 22 tables publiques avec RLS, une table privée pour les SIRET, et quatre buckets Storage privés. Les types de la base sont générés dans [`src/services/supabase/database.types.ts`](src/services/supabase/database.types.ts). Voir [`supabase/README.md`](supabase/README.md) pour le modèle d’accès et le déploiement.
 
 ## Portée actuelle
 
 - Navigation principale **en haut** et thème visuel inspiré des maquettes.
 - Écrans : accueil, découverte, publication, réseau, profil, messages, notifications, connexion, inscription, profil professionnel, conversation et demande de devis.
-- Contenus de démonstration locaux pour visualiser les parcours. Les likes, favoris, suivis et messages de démonstration ne sont pas persistés.
+- Les écrans ne contiennent plus de faux comptes ni de fausses publications. La découverte des professionnels, le fil des réalisations, les demandes de devis et les conversations lisent ou écrivent désormais dans Supabase. Les likes, favoris et suivis restent à relier.
 - Types distincts pour `account_type` et les futurs plans `FREE`, `PRO`, `PRO_PLUS`.
 
-Les prochaines phases brancheront les tables Supabase, la vérification SIRET côté serveur, les politiques RLS, Storage, puis les interactions sociales et la messagerie réelles. Les images de démonstration sous `assets/artiz/` ont été générées pour cette maquette.
+Les prochaines phases activeront l’inscription professionnelle après vérification du SIRET côté serveur, puis l’envoi des médias et les autres interactions sociales. Les images de marque sous `assets/artiz/` servent à l’interface.
 
 ## Vérification
 
