@@ -5,14 +5,16 @@ import { Text } from '@/components/typography';
 import { Avatar, EmptyState, MainScreen } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
 import { useAuth } from '@/features/auth/auth-context';
+import { useUnreadMessages } from '@/features/messaging/use-unread-messages';
 import { supabase } from '@/services/supabase/client';
 
 export default function MessagesScreen() {
   const { session } = useAuth();
+  const unread = useUnreadMessages();
+  const unreadByConversation = new Map((unread.data ?? []).map((item) => [item.conversation_id, item.unread_count]));
   const conversations = useQuery({
     queryKey: ['my-conversations', session?.user.id],
     enabled: Boolean(supabase && session),
-    refetchInterval: 10_000,
     queryFn: async () => {
       if (!supabase || !session) return [];
       const { data: memberships, error: membershipError } = await supabase.from('conversation_members')
@@ -42,7 +44,8 @@ export default function MessagesScreen() {
         ? <EmptyState icon="chatbubble-ellipses-outline" title="Aucune conversation" description="Vos échanges avec les professionnels apparaîtront ici." action="Découvrir les artisans" onPress={() => router.replace('/explore')} />
         : conversations.data.map((thread) => <Pressable key={thread.id} onPress={() => router.push(`/conversation/${thread.id}`)} accessibilityRole="button" style={styles.row}>
           <Avatar name={thread.name} />
-          <View style={styles.rowBody}><Text style={styles.name}>{thread.name}</Text><Text style={styles.meta}>Voir la conversation</Text></View>
+          <View style={styles.rowBody}><Text style={styles.name}>{thread.name}</Text><Text style={styles.meta}>{unreadByConversation.get(thread.id) ? `${unreadByConversation.get(thread.id)} message(s) non lu(s)` : 'Voir la conversation'}</Text></View>
+          {Boolean(unreadByConversation.get(thread.id)) && <View style={styles.unread}><Text style={styles.unreadText}>{unreadByConversation.get(thread.id)}</Text></View>}
           <Text style={styles.arrow}>›</Text>
         </Pressable>)}
   </MainScreen>;
@@ -53,5 +56,7 @@ const styles = StyleSheet.create({
   rowBody: { flex: 1, gap: 3 },
   name: { color: colors.navy, fontSize: 16, fontWeight: '700' },
   meta: { color: colors.muted, fontSize: 13 },
+  unread: { backgroundColor: colors.orange, minWidth: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  unreadText: { color: colors.white, fontWeight: '700', fontSize: 12 },
   arrow: { color: colors.blue, fontSize: 22 },
 });

@@ -5,6 +5,8 @@ import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView,
 import { Text } from '@/components/typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@/constants/artiz';
+import { useUnreadMessages } from '@/features/messaging/use-unread-messages';
+import { useUnreadNotifications } from '@/features/notifications/use-notifications';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 const AuthFieldFocusContext = createContext<((input: TextInput) => void) | null>(null);
@@ -22,10 +24,10 @@ export function Brand({ small = false }: { small?: boolean }) {
   </Pressable>;
 }
 
-export function IconButton({ icon, onPress, badge, label }: { icon: IconName; onPress: () => void; badge?: boolean; label: string }) {
+export function IconButton({ icon, onPress, badgeCount, label }: { icon: IconName; onPress: () => void; badgeCount?: number; label: string }) {
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={styles.iconButton}>
     <Ionicons name={icon} size={23} color={colors.navy} />
-    {badge && <View style={styles.badge} />}
+    {Boolean(badgeCount) && <View style={styles.badge}><Text style={styles.badgeText}>{badgeCount! > 99 ? '99+' : badgeCount}</Text></View>}
   </Pressable>;
 }
 
@@ -38,13 +40,16 @@ const navigation: { label: string; icon: IconName; path: '/home' | '/explore' | 
 ];
 
 export function TopNavigation() {
+  const unread = useUnreadMessages();
+  const notifications = useUnreadNotifications();
+  const unreadCount = (unread.data ?? []).reduce((total, item) => total + item.unread_count, 0);
   return <View style={styles.header}>
     <View style={styles.headerTop}>
       <Brand small />
       <View style={styles.headerActions}>
         <IconButton icon="search-outline" label="Rechercher" onPress={() => router.replace('/explore')} />
-        <IconButton icon="chatbubble-ellipses-outline" label="Messages" onPress={() => router.replace('/messages')} />
-        <IconButton icon="notifications-outline" label="Notifications" onPress={() => router.push('/notifications')} />
+        <IconButton icon="chatbubble-ellipses-outline" label={unreadCount ? `Messages, ${unreadCount} non lus` : 'Messages'} badgeCount={unreadCount} onPress={() => router.replace('/messages')} />
+        <IconButton icon="notifications-outline" label={notifications.data ? `Notifications, ${notifications.data} non lues` : 'Notifications'} badgeCount={notifications.data ?? 0} onPress={() => router.push('/notifications')} />
       </View>
     </View>
     <MainNavigation />
@@ -184,7 +189,8 @@ const styles = StyleSheet.create({
   brandWrap: { alignSelf: 'center' },
   brandWrapSmall: { alignSelf: 'flex-start' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  badge: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: colors.orange, right: 8, top: 7, borderWidth: 1, borderColor: colors.white },
+  badge: { position: 'absolute', minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.orange, right: 1, top: 1, paddingHorizontal: 3, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.white },
+  badgeText: { color: colors.white, fontSize: 10, fontWeight: '700' },
   navRow: { height: 64, maxWidth: 820, width: '100%', alignSelf: 'center', flexDirection: 'row', paddingHorizontal: spacing.sm, borderTopWidth: 1, borderTopColor: colors.divider },
   navItem: { flex: 1, minWidth: 44, alignItems: 'center', justifyContent: 'center', gap: 2 },
   navIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },

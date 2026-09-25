@@ -8,9 +8,11 @@
     "scheme": "artiz",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "fr.artiz.mobile",
       "icon": "./assets/artiz/logo-2026.png"
     },
     "android": {
+      "package": "fr.artiz.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/artiz/logo-2026.png"
@@ -23,6 +25,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {

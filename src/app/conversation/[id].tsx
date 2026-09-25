@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
@@ -14,6 +14,7 @@ export default function ConversationScreen() {
   const queryClient = useQueryClient();
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const lastMarkedMessage = useRef<string | null>(null);
   const conversation = useQuery({
     queryKey: ['conversation', id, session?.user.id],
     enabled: Boolean(supabase && id && session),
@@ -31,18 +32,31 @@ export default function ConversationScreen() {
     },
   });
   const messages = useQuery({
-    queryKey: ['conversation-messages', id],
+    queryKey: ['conversation-messages', id, session?.user.id],
     enabled: Boolean(supabase && id && conversation.data),
-    refetchInterval: 4_000,
     queryFn: async () => {
       if (!supabase || !id) return [];
       const { data, error } = await supabase.from('messages')
         .select('id,sender_id,body,created_at').eq('conversation_id', id)
-        .order('created_at', { ascending: true }).limit(100);
+        .order('created_at', { ascending: false }).limit(100);
       if (error) throw error;
-      return data;
+      return data.reverse();
     },
   });
+
+  useEffect(() => {
+    if (!supabase || !session || !id || !conversation.data || !messages.data?.length) return;
+    const newest = messages.data[messages.data.length - 1];
+    if (lastMarkedMessage.current === newest.id) return;
+    lastMarkedMessage.current = newest.id;
+    void supabase.rpc('mark_conversation_read', {
+      target_conversation: id,
+      through_message: newest.id,
+    }).then(({ error }) => {
+      if (error) lastMarkedMessage.current = null;
+      else void queryClient.invalidateQueries({ queryKey: ['unread-message-counts', session.user.id] });
+    });
+  }, [conversation.data, id, messages.data, queryClient, session]);
 
   async function send() {
     const content = body.trim();

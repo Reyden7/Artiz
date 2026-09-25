@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/typography';
@@ -31,7 +32,10 @@ export default function RegisterScreen() {
     try {
       const normalizedEmail = email.trim().toLowerCase();
       const { error, data } = await supabase.auth.signUp({
-        email: normalizedEmail, password, options: { data: { display_name: name.trim() } },
+        email: normalizedEmail, password, options: {
+          data: { display_name: name.trim() },
+          emailRedirectTo: Linking.createURL('auth/callback'),
+        },
       });
       if (error) { setMessage(error.message); return; }
       if (type === 'professional') {

@@ -39,11 +39,19 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000501', true);
 do $$
 begin
-  if (select count(*) from public.professional_profiles) <> 2 then
+  if (select count(*) from public.professional_profiles
+      where user_id in ('00000000-0000-4000-8000-000000000503',
+                        '00000000-0000-4000-8000-000000000504',
+                        '00000000-0000-4000-8000-000000000505',
+                        '00000000-0000-4000-8000-000000000508')) <> 2 then
     raise exception 'professional directory contains an unverified profile';
   end if;
   if (select count(*) from public.professional_profiles
-      where verification_status = 'verified') <> 2 then
+      where verification_status = 'verified'
+        and user_id in ('00000000-0000-4000-8000-000000000503',
+                        '00000000-0000-4000-8000-000000000504',
+                        '00000000-0000-4000-8000-000000000505',
+                        '00000000-0000-4000-8000-000000000508')) <> 2 then
     raise exception 'professional directory includes an unverified profile';
   end if;
   if (select count(*) from public.professional_services

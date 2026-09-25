@@ -1,6 +1,6 @@
 # Base de données Artiz
 
-Les migrations de ce dossier ont été appliquées au projet Supabase Artiz. Elles couvrent les profils, professionnels, catégories, abonnements, publications, demandes, conversations, avis, notifications et signalements.
+Les migrations de ce dossier couvrent les profils, professionnels, catégories, abonnements, publications, demandes, conversations, avis, notifications et signalements. La migration `20260925070000_dispatch_push_webhooks.sql` est préparée mais **n’a pas été appliquée** : elle déclenche des appels externes et attend une autorisation explicite.
 
 ## Accès
 
@@ -28,6 +28,25 @@ Le scénario [`tests/professional_registration_rate_limit.sql`](tests/profession
 Le scénario [`tests/admin_manual_siret_review.sql`](tests/admin_manual_siret_review.sql) vérifie le refus des appels administrateur directs, le contrôle récent du registre et la traçabilité d’une validation manuelle.
 Le scénario [`tests/publication_storage.sql`](tests/publication_storage.sql) vérifie les écritures Storage et publications autorisées, le refus des comptes particuliers ou en attente, puis le retrait du fil après révocation.
 Le scénario [`tests/needs_storage.sql`](tests/needs_storage.sql) vérifie la publication d’un besoin et de ses photos par un particulier, puis le refus d’une publication ou réponse par un professionnel en attente.
+Le scénario [`tests/realtime_unread.sql`](tests/realtime_unread.sql) vérifie les compteurs de messages non lus, le curseur de lecture et le refus d’une modification directe des dates.
+Le scénario [`tests/server_professional_search.sql`](tests/server_professional_search.sql) vérifie la recherche par ville et par nom de métier, ainsi que l’exclusion des professionnels en attente.
+Le scénario [`tests/push_events.sql`](tests/push_events.sql) vérifie la création serveur des notifications, la file par appareil, les préférences et les refus d’accès direct. Aucun push externe n’est envoyé par ces tests.
+
+## Confirmation e-mail et téléphone
+
+L’application possède la route `auth/callback`, associe l’inscription à `Linking.createURL('auth/callback')` et traite le `code`, les jetons ou le `token_hash` reçus dans la requête ou le fragment. Si la confirmation a abouti sans session utilisable, elle affiche un accès direct à la connexion. Le test utilisateur confirme que le lien ouvre Artiz et valide l’adresse côté Supabase. La configuration des URL Supabase reste inchangée pendant cette correction.
+
+Expo Go Android ne permet pas de valider ce parcours complet avec le schéma `artiz://` ; il faut une version installée de l’application. Le callback a été vérifié sur téléphone avec un lien sans paramètres, un `code` de test, un `token_hash` de test et des jetons de test. Un nouveau lien valide reste nécessaire pour vérifier la création automatique de session de bout en bout.
+
+## Notifications
+
+Les déclencheurs SQL créent des notifications internes et des livraisons privées après les écritures validées en base : inscription professionnelle en attente, message et réponse à un besoin. Les jetons Expo sont associés au compte et aux appareils par `register_push_token`; chaque utilisateur contrôle ses préférences. Le client ne peut ni créer une notification, ni lire la file privée, ni exécuter les fonctions de livraison. Les notifications internes arrivent par Supabase Realtime. Les messages utilisent également Realtime et un compteur serveur de non lus.
+
+Le code Edge `dispatch-push` et la migration `dispatch_push_webhooks` préparent l’envoi à `https://exp.host/--/api/v2/push/send` et la lecture des reçus Expo. L’envoi transmet à Expo le jeton de l’appareil et le nom affiché de l’auteur avec le texte de l’alerte. Le déploiement a été refusé par la revue automatique en attendant une autorisation explicite pour cet échange avec Expo. Après autorisation, déployer la fonction, puis appliquer la migration des webhooks, dans cet ordre. Le secret du webhook est généré dans Supabase Vault et n’est jamais envoyé à l’application.
+
+Les notifications push distantes Android exigent une version de développement, un projet EAS et des identifiants FCM ; Expo Go ne les gère pas. Le CLI EAS indique actuellement « Not logged in ». L’application charge `expo-notifications` uniquement dans un build compatible, ce qui permet de continuer à utiliser Expo Go pour les autres parcours. Tester ensuite la réception en premier plan, en arrière-plan et application fermée, l’ouverture de la bonne route et la désactivation des jetons invalides.
+
+La découverte utilise `search_professionals` : recherche par nom, métier/service ou ville, catégorie et pagination de 20 résultats. Les profils en attente ou dont le type de compte ne correspond plus à `professional` sont exclus côté serveur.
 
 ## Inscription professionnelle
 

@@ -7,6 +7,7 @@ import { MainScreen, Avatar, Field, PrimaryButton, SectionTitle } from '@/compon
 import { colors } from '@/constants/artiz';
 import { useAuth } from '@/features/auth/auth-context';
 import { completeProfessionalRegistration, getPendingProfessionalRegistration, savePendingProfessionalRegistration, type PendingProfessionalRegistration } from '@/features/auth/professional-registration';
+import { registerPushForCurrentDevice, revokePushForCurrentDevice } from '@/features/notifications/push';
 import { supabase } from '@/services/supabase/client';
 
 export default function ProfileScreen() {
@@ -16,10 +17,22 @@ export default function ProfileScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyCategory, setBusyCategory] = useState<string | null>(null);
+  const [pushBusy, setPushBusy] = useState(false);
   const [message, setMessage] = useState('');
   const userId = session?.user.id;
   const email = session?.user.email;
   const queryClient = useQueryClient();
+  const notificationPreferences = useQuery({
+    queryKey: ['notification-preferences', userId],
+    enabled: Boolean(supabase && userId),
+    queryFn: async () => {
+      if (!supabase || !userId) return null;
+      const { data, error } = await supabase.from('notification_preferences')
+        .select('new_messages,request_responses,admin_professionals').eq('user_id', userId).single();
+      if (error) throw error;
+      return data;
+    },
+  });
   const professionalCategories = useQuery({
     queryKey: ['my-professional-categories', userId],
     enabled: Boolean(supabase && userId && verificationStatus === 'verified'),
@@ -80,8 +93,48 @@ export default function ProfileScreen() {
     setBusyCategory(null);
   }
 
+  async function enablePush() {
+    if (pushBusy) return;
+    setPushBusy(true); setMessage('');
+    try {
+      await registerPushForCurrentDevice();
+      setMessage('Notifications activées sur cet appareil.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Activation impossible.');
+    } finally { setPushBusy(false); }
+  }
+
+  async function toggleNotificationPreference(key: 'new_messages' | 'request_responses' | 'admin_professionals') {
+    if (!supabase || !userId || !notificationPreferences.data) return;
+    const current = notificationPreferences.data;
+    const update = key === 'new_messages' ? { new_messages: !current.new_messages }
+      : key === 'request_responses' ? { request_responses: !current.request_responses }
+        : { admin_professionals: !current.admin_professionals };
+    const { error } = await supabase.from('notification_preferences')
+      .update(update).eq('user_id', userId);
+    if (error) setMessage('Impossible de modifier cette préférence.');
+    else await queryClient.invalidateQueries({ queryKey: ['notification-preferences', userId] });
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    try { await revokePushForCurrentDevice(); }
+    catch { setMessage('Impossible de retirer cet appareil des notifications. Réessayez avant de vous déconnecter.'); return; }
+    await supabase.auth.signOut();
+  }
+
   return <MainScreen title="Mon profil">
-    <View style={styles.card}><Avatar name={session?.user.user_metadata?.display_name ?? 'Artiz'} size={76} /><Text style={styles.title}>{session?.user.user_metadata?.display_name ?? 'Mon compte'}</Text><Text style={styles.meta}>{session?.user.email}</Text><PrimaryButton title="Se déconnecter" onPress={() => supabase?.auth.signOut()} outline /></View>
+    <View style={styles.card}><Avatar name={session?.user.user_metadata?.display_name ?? 'Artiz'} size={76} /><Text style={styles.title}>{session?.user.user_metadata?.display_name ?? 'Mon compte'}</Text><Text style={styles.meta}>{session?.user.email}</Text><PrimaryButton title="Se déconnecter" onPress={() => void signOut()} outline /></View>
+    <View style={styles.categoryCard}>
+      <Text style={styles.title}>Notifications</Text>
+      <PrimaryButton title={pushBusy ? 'Activation…' : 'Activer sur cet appareil'} onPress={() => void enablePush()} disabled={pushBusy} outline />
+      {notificationPreferences.data && <>
+        <Pressable style={styles.preference} onPress={() => void toggleNotificationPreference('new_messages')} accessibilityRole="switch" accessibilityState={{ checked: notificationPreferences.data.new_messages }}><Text style={styles.rowText}>Nouveaux messages</Text><Text style={styles.preferenceState}>{notificationPreferences.data.new_messages ? 'Activé' : 'Désactivé'}</Text></Pressable>
+        <Pressable style={styles.preference} onPress={() => void toggleNotificationPreference('request_responses')} accessibilityRole="switch" accessibilityState={{ checked: notificationPreferences.data.request_responses }}><Text style={styles.rowText}>Réponses à mes besoins</Text><Text style={styles.preferenceState}>{notificationPreferences.data.request_responses ? 'Activé' : 'Désactivé'}</Text></Pressable>
+        {isAdmin && <Pressable style={styles.preference} onPress={() => void toggleNotificationPreference('admin_professionals')} accessibilityRole="switch" accessibilityState={{ checked: notificationPreferences.data.admin_professionals }}><Text style={styles.rowText}>Professionnels à valider</Text><Text style={styles.preferenceState}>{notificationPreferences.data.admin_professionals ? 'Activé' : 'Désactivé'}</Text></Pressable>}
+      </>}
+      {message ? <Text style={styles.meta}>{message}</Text> : null}
+    </View>
     {verificationStatus && <View style={styles.card}><Text style={styles.title}>Compte professionnel</Text><Text style={styles.meta}>{verificationStatus === 'pending' ? 'Votre entreprise a bien été identifiée. Votre compte professionnel est en attente de validation.' : verificationStatus === 'verified' ? 'Votre activité est vérifiée.' : 'Vérification : ' + verificationStatus}</Text></View>}
     {pending && <View style={styles.card}><Text style={styles.title}>Terminer l’inscription professionnelle</Text><Text style={styles.meta}>Votre compte est créé. Confirmez votre SIRET pour soumettre votre activité à vérification.</Text><Field label="Nom commercial" value={pending.businessName} onChangeText={(businessName) => setPending({ ...pending, businessName })} /><Field label="SIRET" value={pending.siret} onChangeText={(siret) => setPending({ ...pending, siret })} keyboardType="number-pad" maxLength={14} /><PrimaryButton title={busy ? 'Vérification…' : 'Vérifier mon SIRET'} onPress={retryProfessionalRegistration} disabled={busy || pending.businessName.trim().length < 2 || !/^\d{14}$/.test(pending.siret)} />{message ? <Text style={styles.meta}>{message}</Text> : null}</View>}
     {isAdmin && <Pressable style={styles.row} onPress={() => router.push('/admin/professionals')}><Text style={styles.rowText}>Professionnels en attente</Text><Text style={styles.arrow}>›</Text></Pressable>}
@@ -100,4 +153,4 @@ export default function ProfileScreen() {
   </MainScreen>;
 }
 
-const styles = StyleSheet.create({ card: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 16, padding: 20, alignItems: 'center', gap: 12 }, title: { fontSize: 20, fontWeight: '700', color: colors.navy }, meta: { color: colors.muted, lineHeight: 22, textAlign: 'center', marginBottom: 4 }, row: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 16, minHeight: 48, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, rowText: { color: colors.navy, fontWeight: '600' }, arrow: { color: colors.blue, fontSize: 22 }, categoryCard: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 16, padding: 20, gap: 12 }, categories: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, category: { backgroundColor: colors.pale, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 10 }, categoryActive: { backgroundColor: colors.blue }, categoryText: { color: colors.navy, fontSize: 13 }, categoryTextActive: { color: colors.white, fontWeight: '700' } });
+const styles = StyleSheet.create({ card: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 16, padding: 20, alignItems: 'center', gap: 12 }, title: { fontSize: 20, fontWeight: '700', color: colors.navy }, meta: { color: colors.muted, lineHeight: 22, textAlign: 'center', marginBottom: 4 }, row: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 16, minHeight: 48, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, rowText: { color: colors.navy, fontWeight: '600' }, arrow: { color: colors.blue, fontSize: 22 }, categoryCard: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 16, padding: 20, gap: 12 }, categories: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, category: { backgroundColor: colors.pale, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 10 }, categoryActive: { backgroundColor: colors.blue }, categoryText: { color: colors.navy, fontSize: 13 }, categoryTextActive: { color: colors.white, fontWeight: '700' }, preference: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }, preferenceState: { color: colors.blue, fontWeight: '600' } });

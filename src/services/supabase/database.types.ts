@@ -141,6 +141,38 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          admin_professionals: boolean
+          new_messages: boolean
+          request_responses: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_professionals?: boolean
+          new_messages?: boolean
+          request_responses?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_professionals?: boolean
+          new_messages?: boolean
+          request_responses?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_id: string | null
@@ -642,6 +674,47 @@ export type Database = {
         }
         Relationships: []
       }
+      push_tokens: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          expo_push_token: string
+          id: string
+          last_seen_at: string
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          expo_push_token: string
+          id?: string
+          last_seen_at?: string
+          platform: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          expo_push_token?: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
@@ -957,7 +1030,85 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      complete_professional_registration: {
+        Args: {
+          registry_legal_name: string
+          subject_id: string
+          submitted_business_name: string
+          submitted_siret: string
+        }
+        Returns: undefined
+      }
+      is_artiz_admin: { Args: { subject_id: string }; Returns: boolean }
+      mark_conversation_read: {
+        Args: { target_conversation: string; through_message: string }
+        Returns: undefined
+      }
+      pending_professional_reviews: {
+        Args: { admin_id: string }
+        Returns: {
+          applied_at: string
+          business_name: string
+          commune: string
+          display_name: string
+          email: string
+          legal_name: string
+          postal_code: string
+          registry_data: Json
+          siret: string
+          user_id: string
+        }[]
+      }
+      record_professional_registration_attempt: {
+        Args: { subject_id: string }
+        Returns: boolean
+      }
+      register_push_token: {
+        Args: { device_platform: string; token: string }
+        Returns: undefined
+      }
+      review_professional_affiliation: {
+        Args: {
+          affiliation_evidence: string
+          decision: string
+          note: string
+          reviewer_id: string
+          subject_id: string
+        }
+        Returns: undefined
+      }
+      save_professional_registry_snapshot: {
+        Args: {
+          commune: string
+          postal_code: string
+          snapshot: Json
+          subject_id: string
+          submitted_siret: string
+        }
+        Returns: undefined
+      }
+      search_professionals: {
+        Args: {
+          filter_category?: string
+          filter_city?: string
+          page_number?: number
+          page_size?: number
+          search_text?: string
+        }
+        Returns: {
+          business_name: string
+          city: string
+          headline: string
+          user_id: string
+        }[]
+      }
+      unread_message_counts: {
+        Args: never
+        Returns: {
+          conversation_id: string
+          unread_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
