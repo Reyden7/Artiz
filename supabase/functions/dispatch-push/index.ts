@@ -14,22 +14,13 @@ type Delivery = {
   expo_push_token: string;
   kind: string;
   payload: Record<string, unknown>;
-  actor_name: string;
 };
 
 function content(delivery: Delivery) {
-  const name = delivery.actor_name || 'Un membre';
-  if (delivery.kind === 'professional_pending') {
-    return { title: 'Nouveau professionnel à valider', body: `${name} attend votre validation.`, url: '/admin/professionals' };
-  }
-  if (delivery.kind === 'request_response') {
-    return { title: 'Un professionnel a répondu à votre demande', body: `${name} est intéressé par votre projet.`, url: '/requests' };
-  }
-  const conversationId = delivery.payload.conversation_id;
-  return {
-    title: 'Nouveau message', body: `${name} vous a envoyé un message.`,
-    url: typeof conversationId === 'string' ? `/conversation/${conversationId}` : '/messages',
-  };
+  const requestId = delivery.payload.support_request_id;
+  return { title: 'Nouvelle demande de support', body: 'Une nouvelle demande attend votre attention.',
+    url: typeof requestId === 'string' && /^[0-9a-f-]{36}$/i.test(requestId)
+      ? `/admin/support/${requestId}` : '/admin/support' };
 }
 
 Deno.serve(async (request: Request) => {
@@ -80,6 +71,15 @@ Deno.serve(async (request: Request) => {
   if (error) return reply(503, { error: 'Delivery unavailable' });
   const delivery = (data as Delivery[] | null)?.[0];
   if (!delivery) return reply(200, { skipped: true });
+
+  // This deployment is explicitly limited to support alerts.
+  if (delivery.kind !== 'support_request') {
+    await server.rpc('finish_push_delivery', {
+      delivery_id: delivery.id, result_status: 'pending', ticket_id: null,
+      error_message: 'Unsupported notification kind',
+    });
+    return reply(403, { error: 'Unsupported notification kind' });
+  }
 
   try {
     const message = content(delivery);

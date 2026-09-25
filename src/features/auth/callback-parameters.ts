@@ -5,12 +5,13 @@ const callbackKeys = [
 
 type RouteParameters = Record<string, string | string[] | undefined>;
 
-function isCallbackUrl(url: string) {
+function isAuthUrl(url: string, routePath: string) {
   const path = url.split(/[?#]/, 1)[0];
-  return /(?:\/|:\/\/)auth\/callback\/?$/.test(path);
+  return path.endsWith(`://${routePath}`) || path.endsWith(`/${routePath}`) ||
+    path.endsWith(`://${routePath}/`) || path.endsWith(`/${routePath}/`);
 }
 
-export function readConfirmationParameters(urls: (string | null | undefined)[], route: RouteParameters) {
+export function readAuthLinkParameters(urls: (string | null | undefined)[], route: RouteParameters, routePath: string) {
   const routeValues = new URLSearchParams();
   const fragment = route['#'];
   if (typeof fragment === 'string') {
@@ -21,7 +22,7 @@ export function readConfirmationParameters(urls: (string | null | undefined)[], 
     if (typeof value === 'string') routeValues.set(key, value);
   }
   for (const url of urls) {
-    if (!url || !isCallbackUrl(url)) continue;
+    if (!url || !isAuthUrl(url, routePath)) continue;
     try {
       const parsed = new URL(url);
       const nativeValues = new URLSearchParams(parsed.search);
@@ -33,4 +34,8 @@ export function readConfirmationParameters(urls: (string | null | undefined)[], 
     }
   }
   return routeValues;
+}
+
+export function readConfirmationParameters(urls: (string | null | undefined)[], route: RouteParameters) {
+  return readAuthLinkParameters(urls, route, 'auth/callback');
 }

@@ -40,18 +40,27 @@ const navigation: { label: string; icon: IconName; path: '/home' | '/explore' | 
 ];
 
 export function TopNavigation() {
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
   const unread = useUnreadMessages();
   const notifications = useUnreadNotifications();
   const unreadCount = (unread.data ?? []).reduce((total, item) => total + item.unread_count, 0);
   return <View style={styles.header}>
     <View style={styles.headerTop}>
-      <Brand small />
+      <View style={styles.brandActions}>
+        <Brand small />
+        <IconButton icon="ellipsis-horizontal" label="Plus d’options" onPress={() => setMenuOpen((open) => !open)} />
+      </View>
       <View style={styles.headerActions}>
         <IconButton icon="search-outline" label="Rechercher" onPress={() => router.replace('/explore')} />
         <IconButton icon="chatbubble-ellipses-outline" label={unreadCount ? `Messages, ${unreadCount} non lus` : 'Messages'} badgeCount={unreadCount} onPress={() => router.replace('/messages')} />
         <IconButton icon="notifications-outline" label={notifications.data ? `Notifications, ${notifications.data} non lues` : 'Notifications'} badgeCount={notifications.data ?? 0} onPress={() => router.push('/notifications')} />
       </View>
     </View>
+    {menuOpen && <Pressable style={styles.moreMenu} accessibilityRole="button" onPress={() => {
+      setMenuOpen(false);
+      router.push({ pathname: '/settings/support/new', params: { screen: pathname } });
+    }}><Ionicons name="alert-circle-outline" size={19} color={colors.blue} /><Text style={styles.moreMenuText}>Signaler un problème</Text></Pressable>}
     <MainNavigation />
   </View>;
 }
@@ -185,7 +194,10 @@ const styles = StyleSheet.create({
   authSafe: { flex: 1, backgroundColor: colors.white },
   header: { backgroundColor: colors.white, borderBottomColor: colors.border, borderBottomWidth: 1, zIndex: 1 },
   headerTop: { height: 60, maxWidth: 820, width: '100%', alignSelf: 'center', paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brandActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  moreMenu: { position: 'absolute', zIndex: 5, top: 55, left: 14, backgroundColor: colors.white, borderColor: colors.divider, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 9, elevation: 5 },
+  moreMenuText: { color: colors.navy, fontWeight: '600' },
   brandWrap: { alignSelf: 'center' },
   brandWrapSmall: { alignSelf: 'flex-start' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

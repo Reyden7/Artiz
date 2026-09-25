@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/typography';
-import { EmptyState, Field, MainScreen, PrimaryButton } from '@/components/artiz-ui';
+import { AppScreen, EmptyState, Field, PrimaryButton } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
 import { useAuth } from '@/features/auth/auth-context';
 import { useAccountType } from '@/features/auth/use-account-type';
@@ -81,7 +80,7 @@ export default function RequestsScreen() {
 
   const loading = account.isPending || access.isPending && professional || requests.isPending;
   const error = account.error || access.error || requests.error;
-  return <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}><MainScreen title={professional ? 'Besoins des particuliers' : 'Mes besoins'} subtitle={professional ? 'Demandes ouvertes dans vos métiers.' : 'Retrouvez vos demandes publiées.'}>
+  return <AppScreen title={professional ? 'Besoins des particuliers' : 'Mes besoins'} subtitle={professional ? 'Demandes ouvertes dans vos métiers.' : 'Retrouvez vos demandes publiées.'}>
     <Pressable onPress={() => router.back()}><Text style={styles.link}>‹ Retour</Text></Pressable>
     {loading ? <ActivityIndicator color={colors.blue} /> : error
       ? <EmptyState icon="alert-circle-outline" title="Demandes indisponibles" description="Impossible de charger les demandes pour le moment." />
@@ -104,11 +103,10 @@ export default function RequestsScreen() {
                 <PrimaryButton title={busy ? 'Envoi…' : 'Envoyer et ouvrir la conversation'} onPress={() => void reply(item.id, item.customer_id)} disabled={busy || response.trim().length < 10} />
               </>}
             </View>)}
-  </MainScreen></SafeAreaView>;
+  </AppScreen>;
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
   link: { color: colors.blue, fontWeight: '600' },
   card: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 16, padding: 18, gap: 10 },
   title: { color: colors.navy, fontSize: 18, fontWeight: '700' },

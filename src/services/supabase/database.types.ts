@@ -144,6 +144,7 @@ export type Database = {
       notification_preferences: {
         Row: {
           admin_professionals: boolean
+          admin_support: boolean
           new_messages: boolean
           request_responses: boolean
           updated_at: string
@@ -151,6 +152,7 @@ export type Database = {
         }
         Insert: {
           admin_professionals?: boolean
+          admin_support?: boolean
           new_messages?: boolean
           request_responses?: boolean
           updated_at?: string
@@ -158,6 +160,7 @@ export type Database = {
         }
         Update: {
           admin_professionals?: boolean
+          admin_support?: boolean
           new_messages?: boolean
           request_responses?: boolean
           updated_at?: string
@@ -1025,11 +1028,83 @@ export type Database = {
           },
         ]
       }
+      support_requests: {
+        Row: {
+          app_version: string
+          category: string
+          contact_email: string
+          created_at: string
+          description: string
+          device_info: string | null
+          id: string
+          platform: string
+          priority: string
+          screen_path: string | null
+          screenshot_path: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_version: string
+          category: string
+          contact_email: string
+          created_at?: string
+          description: string
+          device_info?: string | null
+          id?: string
+          platform: string
+          priority?: string
+          screen_path?: string | null
+          screenshot_path?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          app_version?: string
+          category?: string
+          contact_email?: string
+          created_at?: string
+          description?: string
+          device_info?: string | null
+          id?: string
+          platform?: string
+          priority?: string
+          screen_path?: string | null
+          screenshot_path?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      claim_push_delivery: {
+        Args: { delivery_id: string }
+        Returns: {
+          actor_name: string
+          expo_push_token: string
+          id: string
+          kind: string
+          payload: Json
+        }[]
+      }
       complete_professional_registration: {
         Args: {
           registry_legal_name: string
@@ -1039,7 +1114,32 @@ export type Database = {
         }
         Returns: undefined
       }
+      due_push_receipts: {
+        Args: never
+        Returns: {
+          expo_ticket_id: string
+          id: string
+        }[]
+      }
+      finish_push_delivery: {
+        Args: {
+          delivery_id: string
+          error_message: string
+          result_status: string
+          ticket_id: string
+        }
+        Returns: undefined
+      }
+      finish_push_receipt: {
+        Args: {
+          delivery_id: string
+          error_message: string
+          result_status: string
+        }
+        Returns: undefined
+      }
       is_artiz_admin: { Args: { subject_id: string }; Returns: boolean }
+      is_artiz_admin_self: { Args: never; Returns: boolean }
       mark_conversation_read: {
         Args: { target_conversation: string; through_message: string }
         Returns: undefined
@@ -1062,6 +1162,10 @@ export type Database = {
       record_professional_registration_attempt: {
         Args: { subject_id: string }
         Returns: boolean
+      }
+      register_admin_push_token: {
+        Args: { device_platform: string; previous_token?: string | null; token: string }
+        Returns: undefined
       }
       register_push_token: {
         Args: { device_platform: string; token: string }
@@ -1108,6 +1212,10 @@ export type Database = {
           conversation_id: string
           unread_count: number
         }[]
+      }
+      verify_artiz_push_webhook_secret: {
+        Args: { presented: string }
+        Returns: boolean
       }
     }
     Enums: {

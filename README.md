@@ -41,4 +41,15 @@ npm run lint
 npx expo export --platform web
 ```
 
-Le build natif avec EAS nécessite une connexion à un compte Expo : `npx eas-cli@latest build --profile preview --platform android` (ou `ios`).
+## Notifications Android de développement
+
+Le projet EAS `@vorn/artiz` et le projet Firebase `artiz-db71e` sont reliés à l’application Android `fr.artiz.mobile`. Le fichier public `google-services.json` est requis à la racine du dépôt ; `app.json` le référence. La clé privée FCM V1 est gérée dans les identifiants EAS et ne doit jamais être ajoutée au dépôt.
+
+Pour tester les notifications sur un téléphone physique, construire puis installer un nouveau client de développement :
+
+```bash
+npx eas-cli@latest build --profile development --platform android
+npx expo start --dev-client
+```
+
+L’activation des notifications du compte administrateur interroge son statut côté Supabase, demande l’autorisation Android et enregistre le jeton Expo lié au compte connecté. La déconnexion retire ce jeton de la base. Les alertes push externes sont limitées aux nouvelles demandes de support. Un ticket et un reçu Expo confirment l’acceptation par Expo puis par FCM ; la réception reste à vérifier sur le téléphone.

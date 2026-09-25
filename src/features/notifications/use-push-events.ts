@@ -6,7 +6,11 @@ import { supabase } from '@/services/supabase/client';
 
 function openNotification(url: unknown) {
   if (url === '/admin/professionals') router.push('/admin/professionals');
+  else if (url === '/admin/support') router.push('/admin/support' as import('expo-router').Href);
   else if (url === '/requests') router.push('/requests');
+  else if (typeof url === 'string' && /^\/admin\/support\/[0-9a-f-]{36}$/i.test(url)) {
+    router.push({ pathname: '/admin/support/[id]', params: { id: url.split('/').pop()! } });
+  }
   else if (typeof url === 'string' && /^\/conversation\/[0-9a-f-]{36}$/i.test(url)) {
     router.push(url as `/conversation/${string}`);
   }
@@ -24,8 +28,10 @@ export function usePushEvents(userId: string | undefined) {
         if (!active) return;
         Notifications.setNotificationHandler({
           handleNotification: async () => ({
-            shouldShowBanner: false, shouldShowList: false,
-            shouldPlaySound: false, shouldSetBadge: false,
+            shouldShowBanner: true,
+            shouldShowList: true,
+            shouldPlaySound: false,
+            shouldSetBadge: false,
           }),
         });
         const received = Notifications.addNotificationReceivedListener(() => {
@@ -36,14 +42,16 @@ export function usePushEvents(userId: string | undefined) {
           if (lastOpened.current === id) return;
           lastOpened.current = id;
           openNotification(response.notification.request.content.data?.url);
+          Notifications.clearLastNotificationResponse();
           void queryClient.invalidateQueries({ queryKey: ['my-notifications', userId] });
         });
         removePushListeners = () => { received.remove(); opened.remove(); };
-        void Notifications.getLastNotificationResponseAsync().then((response) => {
-          if (!active || !response || lastOpened.current === response.notification.request.identifier) return;
+        const response = Notifications.getLastNotificationResponse();
+        if (active && response && lastOpened.current !== response.notification.request.identifier) {
           lastOpened.current = response.notification.request.identifier;
           openNotification(response.notification.request.content.data?.url);
-        });
+          Notifications.clearLastNotificationResponse();
+        }
       });
     }
     const channel = supabase.channel(`notifications:${userId}`)

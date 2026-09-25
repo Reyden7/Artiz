@@ -8,6 +8,7 @@ import { AuthScreen, Brand, Field, PrimaryButton } from '@/components/artiz-ui';
 import { AccountType, colors } from '@/constants/artiz';
 import { completeProfessionalRegistration, savePendingProfessionalRegistration } from '@/features/auth/professional-registration';
 import { supabase } from '@/services/supabase/client';
+import { passwordValidationMessage } from '@/features/auth/password-policy';
 
 export default function RegisterScreen() {
   const [type, setType] = useState<AccountType>('customer');
@@ -21,8 +22,8 @@ export default function RegisterScreen() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   async function signUp() {
-    if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) { setMessage('Le mot de passe doit contenir 8 caractères, une lettre et un chiffre.'); return; }
-    if (password !== confirm) { setMessage('Les mots de passe ne correspondent pas.'); return; }
+    const passwordError = passwordValidationMessage(password, confirm);
+    if (passwordError) { setMessage(passwordError); return; }
     if (!accepted) { setMessage('Acceptez les conditions pour continuer.'); return; }
     if (type === 'professional' && (!/^\d{14}$/.test(siret) || business.trim().length < 2)) {
       setMessage('Renseignez un nom commercial et un SIRET de 14 chiffres.'); return;

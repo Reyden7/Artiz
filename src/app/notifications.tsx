@@ -15,6 +15,9 @@ function destination(kind: string, payload: Json) {
   }
   if (kind === 'professional_pending') return '/admin/professionals' as const;
   if (kind === 'request_response') return '/requests' as const;
+  if (kind === 'support_request' && typeof data.support_request_id === 'string') {
+    return { pathname: '/admin/support/[id]', params: { id: data.support_request_id } } as const;
+  }
   return null;
 }
 
@@ -22,6 +25,7 @@ function label(kind: string) {
   if (kind === 'new_message') return 'Nouveau message';
   if (kind === 'request_response') return 'Un professionnel a répondu à votre besoin';
   if (kind === 'professional_pending') return 'Nouveau professionnel à valider';
+  if (kind === 'support_request') return 'Nouvelle demande de support';
   return 'Nouvelle activité';
 }
 

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "973952906252",
+    "project_id": "artiz-db71e",
+    "storage_bucket": "artiz-db71e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:973952906252:android:b28e6ef74ea280824fea29",
+        "android_client_info": {
+          "package_name": "fr.artiz.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADg3N8VOp9V0QVY83HR_CFX7kdsU0d8xc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

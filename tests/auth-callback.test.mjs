@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readConfirmationParameters } from '../src/features/auth/callback-parameters.ts';
+import { readAuthLinkParameters, readConfirmationParameters } from '../src/features/auth/callback-parameters.ts';
+import { passwordValidationMessage } from '../src/features/auth/password-policy.ts';
 
 test('reads the authorization code from a query string', () => {
   const values = readConfirmationParameters(['artiz://auth/callback?code=one'], {});
@@ -47,4 +48,40 @@ test('reads a Supabase error returned in the callback query', () => {
 test('allows a callback without parameters to show the sign-in fallback', () => {
   const values = readConfirmationParameters(['artiz://auth/callback'], {});
   assert.equal(values.toString(), '');
+});
+
+test('reads a recovery token from the native reset URL', () => {
+  const values = readAuthLinkParameters(
+    ['artiz://auth/reset-password#access_token=first&refresh_token=second&type=recovery'], {}, 'auth/reset-password',
+  );
+  assert.equal(values.get('type'), 'recovery');
+  assert.equal(values.get('refresh_token'), 'second');
+});
+
+test('reads the recovery hash from Expo Router when Android omits the native URL', () => {
+  const values = readAuthLinkParameters([null], { '#': 'token_hash=one&type=recovery' }, 'auth/reset-password');
+  assert.equal(values.get('token_hash'), 'one');
+  assert.equal(values.get('type'), 'recovery');
+});
+
+test('prefers a new recovery URL over stale route parameters', () => {
+  const values = readAuthLinkParameters(
+    ['artiz://auth/reset-password?code=new'], { token_hash: 'old', type: 'recovery' }, 'auth/reset-password',
+  );
+  assert.equal(values.get('code'), 'new');
+  assert.equal(values.has('token_hash'), false);
+});
+
+test('does not use a confirmation URL for password recovery', () => {
+  const values = readAuthLinkParameters(
+    ['artiz://auth/callback?code=confirmation'], {}, 'auth/reset-password',
+  );
+  assert.equal(values.has('code'), false);
+});
+
+test('rejects weak or mismatched passwords', () => {
+  assert.match(passwordValidationMessage('short1', 'short1'), /8 caractères/);
+  assert.match(passwordValidationMessage('abcdefgh', 'abcdefgh'), /chiffre/);
+  assert.match(passwordValidationMessage('abcd1234', 'abcd1235'), /correspondent pas/);
+  assert.equal(passwordValidationMessage('abcd1234', 'abcd1234'), null);
 });

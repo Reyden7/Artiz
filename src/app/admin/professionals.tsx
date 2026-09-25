@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/typography';
-import { Field, MainScreen, PrimaryButton } from '@/components/artiz-ui';
+import { AppScreen, Field, PrimaryButton } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
 import { supabase } from '@/services/supabase/client';
 
@@ -73,7 +72,7 @@ export default function PendingProfessionalsScreen() {
     setBusy(false);
   }
 
-  return <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}><MainScreen title="Professionnels en attente" subtitle="Examinez chaque SIRET et validez manuellement les comptes professionnels.">
+  return <AppScreen title="Professionnels en attente" subtitle="Examinez chaque SIRET et validez manuellement les comptes professionnels.">
     <Pressable onPress={() => router.back()}><Text style={styles.link}>‹ Retour au profil</Text></Pressable>
     {loading && <ActivityIndicator color={colors.blue} />}
     {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -108,11 +107,10 @@ export default function PendingProfessionalsScreen() {
         </>}
       </View>;
     })}
-  </MainScreen></SafeAreaView>;
+  </AppScreen>;
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
   link: { color: colors.blue, fontWeight: '600' },
   card: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 16, padding: 18, gap: 10 },
   title: { color: colors.navy, fontSize: 20, fontWeight: '700' },
