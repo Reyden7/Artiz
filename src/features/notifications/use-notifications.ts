@@ -8,6 +8,7 @@ export function useUnreadNotifications() {
   return useQuery({
     queryKey: ['my-notifications', userId, 'unread'],
     enabled: Boolean(supabase && userId),
+    refetchInterval: 30_000,
     queryFn: async () => {
       if (!supabase || !userId) return 0;
       const { count, error } = await supabase.from('notifications')

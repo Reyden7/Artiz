@@ -9,6 +9,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { completeProfessionalRegistration, getPendingProfessionalRegistration, savePendingProfessionalRegistration, type PendingProfessionalRegistration } from '@/features/auth/professional-registration';
 import { registerPushForCurrentDevice, resumePushRegistration, revokePushForCurrentDevice } from '@/features/notifications/push';
 import { supabase } from '@/services/supabase/client';
+import { avatarUrl } from '@/features/profiles/avatars';
 
 export default function ProfileScreen() {
   const { session } = useAuth();
@@ -22,6 +23,16 @@ export default function ProfileScreen() {
   const userId = session?.user.id;
   const email = session?.user.email;
   const queryClient = useQueryClient();
+  const myProfile = useQuery({
+    queryKey: ['my-profile', userId], enabled: Boolean(supabase && userId),
+    queryFn: async () => {
+      if (!supabase || !userId) return null;
+      const { data, error } = await supabase.from('profiles')
+        .select('display_name,bio,city,avatar_path,account_type').eq('id', userId).single();
+      if (error) throw error;
+      return { ...data, avatar: await avatarUrl(data.avatar_path) };
+    },
+  });
   const notificationPreferences = useQuery({
     queryKey: ['notification-preferences', userId],
     enabled: Boolean(supabase && userId),
@@ -129,7 +140,7 @@ export default function ProfileScreen() {
   }
 
   return <MainScreen title="Mon profil">
-    <View style={styles.card}><Avatar name={session?.user.user_metadata?.display_name ?? 'Artiz'} size={76} /><Text style={styles.title}>{session?.user.user_metadata?.display_name ?? 'Mon compte'}</Text><Text style={styles.meta}>{session?.user.email}</Text><PrimaryButton title="Se déconnecter" onPress={() => void signOut()} outline /></View>
+    <View style={styles.card}><Avatar name={myProfile.data?.display_name ?? 'Artiz'} uri={myProfile.data?.avatar} size={76} /><Text style={styles.title}>{myProfile.data?.display_name ?? 'Mon compte'}</Text><Text style={styles.meta}>{myProfile.data?.account_type === 'professional' ? 'Professionnel' : 'Particulier'}{myProfile.data?.city ? ` · ${myProfile.data.city}` : ''}</Text>{myProfile.data?.bio ? <Text style={styles.meta}>{myProfile.data.bio}</Text> : null}<Text style={styles.meta}>{session?.user.email}</Text><PrimaryButton title="Modifier mon profil" onPress={() => router.push('/profile/edit')} /><PrimaryButton title="Se déconnecter" onPress={() => void signOut()} outline /></View>
     <View style={styles.categoryCard}>
       <Text style={styles.title}>Notifications</Text>
       <PrimaryButton title={pushBusy ? 'Activation…' : 'Activer sur cet appareil'} onPress={() => void enablePush()} disabled={pushBusy} outline />

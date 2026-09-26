@@ -28,6 +28,14 @@ do $$ declare succeeded boolean := false; affected integer; begin
     where id = '00000000-0000-4000-8000-000000000954';
   get diagnostics affected = row_count;
   if affected <> 0 then raise exception 'Customer changed support status'; end if;
+  update public.support_requests set subject = 'Sujet falsifié'
+    where id = '00000000-0000-4000-8000-000000000954';
+  get diagnostics affected = row_count;
+  if affected <> 0 then raise exception 'Customer edited a support request'; end if;
+  delete from public.support_requests
+    where id = '00000000-0000-4000-8000-000000000954';
+  get diagnostics affected = row_count;
+  if affected <> 0 then raise exception 'Customer deleted a support request'; end if;
   succeeded := false;
   begin
     insert into storage.objects (bucket_id, name) values
@@ -65,10 +73,29 @@ do $$ begin
 end $$;
 update public.support_requests set status = 'in_progress'
   where id = '00000000-0000-4000-8000-000000000954';
+update public.support_requests set category = 'other', subject = 'Sujet corrigé',
+  description = 'Description corrigée par le support.', contact_email = 'new@example.org',
+  priority = 'high'
+  where id = '00000000-0000-4000-8000-000000000954';
 do $$ begin
   if (select status from public.support_requests where id =
-      '00000000-0000-4000-8000-000000000954') <> 'in_progress' then
-    raise exception 'Admin could not update the request';
+      '00000000-0000-4000-8000-000000000954') <> 'in_progress'
+    or (select subject from public.support_requests where id =
+      '00000000-0000-4000-8000-000000000954') <> 'Sujet corrigé'
+    or (select priority from public.support_requests where id =
+      '00000000-0000-4000-8000-000000000954') <> 'high' then
+    raise exception 'Admin could not edit the request';
+  end if;
+end $$;
+-- Storage objects must be deleted through the Storage API, never with SQL.
+-- The admin Storage RLS policy is checked separately from this rolled-back fixture.
+delete from public.support_requests where id = '00000000-0000-4000-8000-000000000954';
+do $$ begin
+  if exists (select 1 from public.support_requests where id =
+      '00000000-0000-4000-8000-000000000954')
+    or exists (select 1 from public.notifications where kind = 'support_request'
+      and payload->>'support_request_id' = '00000000-0000-4000-8000-000000000954') then
+    raise exception 'Admin deletion did not remove the request and its alerts';
   end if;
 end $$;
 rollback;

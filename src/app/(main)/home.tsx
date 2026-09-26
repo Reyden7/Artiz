@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/typography';
 import { router } from 'expo-router';
@@ -21,6 +22,10 @@ type FeedPost = {
   created_at: string;
   authorName: string;
   imageUrl: string | null;
+  avatarUrl: string | null;
+  like_count: number;
+  comment_count: number;
+  liked: boolean;
 };
 const pageSize = 20;
 
@@ -29,6 +34,7 @@ export default function HomeScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const { session } = useAuth();
   const account = useAccountType();
+  const queryClient = useQueryClient();
   const filters = useQuery({
     queryKey: ['feed-filters', session?.user.id],
     enabled: Boolean(supabase && session),
@@ -52,7 +58,7 @@ export default function HomeScreen() {
       const client = supabase;
       if (tab === 'nearby' && !filters.data.city) return [];
       if (tab === 'contacts' && filters.data.following.length === 0) return [];
-      let query = client.from('posts').select('id,author_id,title,body,city,created_at')
+      let query = client.from('posts').select('id,author_id,title,body,city,created_at,like_count,comment_count')
         .eq('status', 'published')
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
@@ -62,13 +68,17 @@ export default function HomeScreen() {
       const { data: posts, error } = await query;
       if (error) throw error;
       if (!posts.length) return [];
-      const [authors, images] = await Promise.all([
-        client.from('profiles').select('id,display_name').in('id', [...new Set(posts.map((post) => post.author_id))]),
+      const [authors, images, likes] = await Promise.all([
+        client.from('profiles').select('id,display_name,avatar_path').in('id', [...new Set(posts.map((post) => post.author_id))]),
         client.from('post_images').select('post_id,storage_path,position').in('post_id', posts.map((post) => post.id)).order('position'),
+        client.from('post_likes').select('post_id').eq('user_id', session.user.id).in('post_id', posts.map((post) => post.id)),
       ]);
       if (authors.error) throw authors.error;
       if (images.error) throw images.error;
+      if (likes.error) throw likes.error;
       const names = new Map(authors.data.map((author) => [author.id, author.display_name]));
+      const avatarPaths = new Map(authors.data.map((author) => [author.id, author.avatar_path]));
+      const liked = new Set(likes.data.map((like) => like.post_id));
       const firstImages = new Map<string, string>();
       images.data.forEach((item) => { if (!firstImages.has(item.post_id)) firstImages.set(item.post_id, item.storage_path); });
       const urls = new Map<string, string>();
@@ -76,10 +86,17 @@ export default function HomeScreen() {
         const { data } = await client.storage.from('post-images').createSignedUrl(path, 600);
         if (data?.signedUrl) urls.set(path, data.signedUrl);
       }));
+      const avatarUrls = new Map<string, string>();
+      await Promise.all([...avatarPaths.values()].filter((path): path is string => Boolean(path)).map(async (path) => {
+        const { data } = await client.storage.from('avatars').createSignedUrl(path, 600);
+        if (data) avatarUrls.set(path, data.signedUrl);
+      }));
       return posts.map((post) => ({
         ...post,
         authorName: names.get(post.author_id) || 'Artisan Artiz',
         imageUrl: urls.get(firstImages.get(post.id) ?? '') ?? null,
+        avatarUrl: avatarUrls.get(avatarPaths.get(post.author_id) ?? '') ?? null,
+        liked: liked.has(post.id),
       }));
     },
     getNextPageParam: (lastPage, allPages) => lastPage.length === pageSize ? allPages.length : undefined,
@@ -102,6 +119,17 @@ export default function HomeScreen() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function toggleLike(post: FeedPost) {
+    if (!supabase || !session || busyId) return;
+    setBusyId(post.id);
+    const result = post.liked
+      ? await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', session.user.id)
+      : await supabase.from('post_likes').insert({ post_id: post.id, user_id: session.user.id });
+    setBusyId(null);
+    if (result.error) Alert.alert('Action impossible', 'Réessayez plus tard.');
+    else await queryClient.invalidateQueries({ queryKey: ['posts-feed'] });
   }
 
   const empty = filters.error || feed.error
@@ -128,10 +156,15 @@ export default function HomeScreen() {
     onEndReached={() => { if (feed.hasNextPage && !feed.isFetchingNextPage) void feed.fetchNextPage(); }}
     onEndReachedThreshold={0.4}
     renderItem={({ item: post }) => <View style={styles.card}>
-      <Pressable onPress={() => router.push(`/professional/${post.author_id}`)} style={styles.author} accessibilityRole="button"><Avatar name={post.authorName} /><View><Text style={styles.authorName}>{post.authorName}</Text>{post.city ? <Text style={styles.location}>{post.city}</Text> : null}</View></Pressable>
+      <Pressable onPress={() => router.push(`/professional/${post.author_id}`)} style={styles.author} accessibilityRole="button"><Avatar name={post.authorName} uri={post.avatarUrl} /><View><Text style={styles.authorName}>{post.authorName}</Text>{post.city ? <Text style={styles.location}>{post.city}</Text> : null}</View></Pressable>
       <Text style={styles.postTitle}>{post.title}</Text>
       <Text style={styles.postBody}>{post.body}</Text>
-      {post.imageUrl ? <Image source={{ uri: post.imageUrl }} contentFit="cover" style={styles.postImage} /> : null}
+      {post.imageUrl ? <Pressable onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id } })}><Image source={{ uri: post.imageUrl }} contentFit="cover" style={styles.postImage} /></Pressable> : null}
+      <View style={styles.social}>
+        <Pressable onPress={() => void toggleLike(post)} disabled={Boolean(busyId)} style={styles.socialAction} accessibilityRole="button" accessibilityLabel={post.liked ? 'Retirer mon j’aime' : 'J’aime'}><Ionicons name={post.liked ? 'heart' : 'heart-outline'} size={22} color={post.liked ? colors.orange : colors.blue} /><Text style={styles.socialText}>{post.like_count}</Text></Pressable>
+        <Pressable onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id } })} style={styles.socialAction} accessibilityRole="button"><Ionicons name="chatbubble-outline" size={21} color={colors.blue} /><Text style={styles.socialText}>{post.comment_count} commentaires</Text></Pressable>
+        <Pressable onPress={() => router.push({ pathname: '/post/report', params: { id: post.id } })} style={styles.socialAction} accessibilityRole="button"><Text style={styles.report}>Signaler</Text></Pressable>
+      </View>
       {account.data === 'customer' && <View style={styles.actions}>
         <Pressable onPress={() => contact(post.author_id)} disabled={Boolean(busyId)} style={styles.action} accessibilityRole="button"><Text style={styles.actionText}>{busyId === post.author_id ? 'Ouverture…' : 'Contacter'}</Text></Pressable>
         <Pressable onPress={() => router.push(`/quote?id=${post.author_id}`)} style={styles.action} accessibilityRole="button"><Text style={styles.actionText}>Demander un devis</Text></Pressable>
@@ -161,6 +194,10 @@ const styles = StyleSheet.create({
   postBody: { color: colors.navy, lineHeight: 21 },
   postImage: { width: '100%', aspectRatio: 4 / 3, borderRadius: 12, backgroundColor: colors.pale },
   actions: { flexDirection: 'row', gap: 10 },
+  social: { flexDirection: 'row', gap: 18, alignItems: 'center', flexWrap: 'wrap' },
+  socialAction: { flexDirection: 'row', gap: 5, alignItems: 'center', minHeight: 38 },
+  socialText: { color: colors.blue, fontSize: 13 },
+  report: { color: colors.muted, fontSize: 13 },
   action: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   actionText: { color: colors.blue, fontWeight: '600', textAlign: 'center' },
   footer: { padding: 20 },

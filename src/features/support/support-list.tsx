@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { AppScreen, EmptyState } from '@/components/artiz-ui';
 import { Text } from '@/components/typography';
 import { colors } from '@/constants/artiz';
-import { SUPPORT_STATUS_LABELS } from '@/constants/support';
+import { SUPPORT_PRIORITIES, SUPPORT_STATUS_LABELS } from '@/constants/support';
 import { useAuth } from '@/features/auth/auth-context';
 import { supabase } from '@/services/supabase/client';
 
@@ -16,7 +16,7 @@ export function SupportList({ admin = false }: { admin?: boolean }) {
     queryFn: async () => {
       if (!supabase || !session) return [];
       let query = supabase.from('support_requests')
-        .select('id,subject,category,status,created_at,contact_email').order('created_at', { ascending: false }).limit(100);
+        .select('id,subject,category,status,priority,created_at,contact_email').order('created_at', { ascending: false }).limit(100);
       if (!admin) query = query.eq('user_id', session.user.id);
       const { data, error } = await query;
       if (error) throw error;
@@ -36,7 +36,7 @@ export function SupportList({ admin = false }: { admin?: boolean }) {
           <View style={styles.text}>
             <Text style={styles.title}>{item.subject}</Text>
             <Text style={styles.meta}>{new Date(item.created_at).toLocaleDateString('fr-FR')} · {SUPPORT_STATUS_LABELS[item.status] ?? item.status}</Text>
-            {admin && <Text style={styles.meta}>{item.contact_email}</Text>}
+            {admin && <Text style={styles.meta}>{item.contact_email} · Priorité : {SUPPORT_PRIORITIES.find((value) => value.value === item.priority)?.label ?? item.priority}</Text>}
           </View><Text style={styles.arrow}>›</Text>
         </Pressable>)}
   </AppScreen>;

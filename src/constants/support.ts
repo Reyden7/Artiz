@@ -21,3 +21,19 @@ export const SUPPORT_STATUS_LABELS: Record<string, string> = {
   resolved: 'Résolue',
   closed: 'Fermée',
 };
+
+export const SUPPORT_STATUSES = [
+  { value: 'open', label: 'Ouverte' },
+  { value: 'in_progress', label: 'En cours' },
+  { value: 'resolved', label: 'Résolue' },
+  { value: 'closed', label: 'Fermée' },
+] as const;
+
+export const SUPPORT_PRIORITIES = [
+  { value: 'low', label: 'Basse' },
+  { value: 'normal', label: 'Normale' },
+  { value: 'high', label: 'Haute' },
+] as const;
+
+export type SupportStatus = typeof SUPPORT_STATUSES[number]['value'];
+export type SupportPriority = typeof SUPPORT_PRIORITIES[number]['value'];

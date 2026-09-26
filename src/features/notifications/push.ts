@@ -96,7 +96,7 @@ export function registerPushForCurrentDevice(options: RegisterOptions): Promise<
       ? await supabase.rpc('register_admin_push_token', {
           token: expoToken,
           device_platform: Platform.OS === 'ios' ? 'ios' : 'android',
-          previous_token: previous?.userId === options.userId ? previousToken : null,
+          previous_token: previous?.userId === options.userId ? previousToken ?? undefined : undefined,
         })
       : await supabase.rpc('register_push_token', {
           token: expoToken,

@@ -2,6 +2,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, u
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { Text } from '@/components/typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@/constants/artiz';
@@ -81,11 +82,52 @@ function MainNavigation() {
   </View>;
 }
 
-type ScreenProps = { children: ReactNode; title?: string; subtitle?: string; scroll?: boolean };
+type ScreenProps = { children: ReactNode; title?: string; subtitle?: string; scroll?: boolean; keyboardExtraSpace?: number };
 
-function ScreenBody({ children, title, subtitle, scroll = true }: ScreenProps) {
+function ScreenBody({ children, title, subtitle, scroll = true, keyboardExtraSpace = 28 }: ScreenProps) {
+  const scrollRef = useRef<ScrollView>(null);
+  const focusedInput = useRef<TextInput | null>(null);
+  const scrollY = useRef(0);
+  const keyboardTop = useRef<number | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const revealFocusedInput = useCallback(() => {
+    const top = keyboardTop.current;
+    if (!focusedInput.current || top === null) return;
+    focusedInput.current.measureInWindow((_x, y, _width, height) => {
+      const overlap = y + height - (top - keyboardExtraSpace);
+      if (overlap > 0) scrollRef.current?.scrollTo({ y: scrollY.current + overlap, animated: true });
+    });
+  }, [keyboardExtraSpace]);
+
+  useEffect(() => {
+    let revealTimer: ReturnType<typeof setTimeout> | undefined;
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      keyboardTop.current = event.endCoordinates.screenY;
+      setKeyboardHeight(event.endCoordinates.height);
+      revealTimer = setTimeout(revealFocusedInput, 250);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      keyboardTop.current = null;
+      focusedInput.current = null;
+      setKeyboardHeight(0);
+    });
+    return () => { if (revealTimer) clearTimeout(revealTimer); show.remove(); hide.remove(); };
+  }, [revealFocusedInput]);
+
+  const onFieldFocus = useCallback((input: TextInput) => {
+    focusedInput.current = input;
+    if (keyboardTop.current !== null) setTimeout(revealFocusedInput, 100);
+  }, [revealFocusedInput]);
+
   const content = <View style={styles.content}>{title && <Text style={styles.screenTitle}>{title}</Text>}{subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}{children}</View>;
-  return scroll ? <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">{content}</ScrollView> : content;
+  return scroll ? <AuthFieldFocusContext.Provider value={onFieldFocus}><ScrollView
+    ref={scrollRef}
+    style={{ flex: 1 }}
+    contentContainerStyle={[styles.scrollContent, keyboardHeight > 0 && { paddingBottom: keyboardHeight + keyboardExtraSpace }]}
+    keyboardShouldPersistTaps="handled"
+    onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
+    scrollEventThrottle={16}
+  >{content}</ScrollView></AuthFieldFocusContext.Provider> : content;
 }
 
 export function MainScreen(props: ScreenProps) {
@@ -184,9 +226,11 @@ export function EmptyState({ icon, title, description, action, onPress }: { icon
   </View>;
 }
 
-export function Avatar({ name, size = 44 }: { name: string; size?: number }) {
+export function Avatar({ name, size = 44, uri }: { name: string; size?: number; uri?: string | null }) {
   const initials = name.split(' ').map((word) => word[0]).slice(0, 2).join('').toUpperCase();
-  return <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}><Text style={[styles.avatarText, { fontSize: size * 0.32 }]}>{initials}</Text></View>;
+  return <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }]}>{uri
+    ? <ExpoImage source={{ uri }} contentFit="cover" style={{ width: size, height: size }} />
+    : <Text style={[styles.avatarText, { fontSize: size * 0.32 }]}>{initials}</Text>}</View>;
 }
 
 const styles = StyleSheet.create({

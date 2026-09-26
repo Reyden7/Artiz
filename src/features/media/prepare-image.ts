@@ -3,13 +3,13 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
-export async function prepareImage(asset: ImagePickerAsset) {
+export async function prepareImage(asset: ImagePickerAsset, maxDimension = 1600) {
   const context = ImageManipulator.ImageManipulator.manipulate(asset.uri);
   const maxSide = Math.max(asset.width, asset.height);
-  if (maxSide > 1600) {
+  if (maxSide > maxDimension) {
     context.resize(asset.width >= asset.height
-      ? { width: 1600, height: null }
-      : { width: null, height: 1600 });
+      ? { width: maxDimension, height: null }
+      : { width: null, height: maxDimension });
   }
   const rendered = await context.renderAsync();
   const result = await rendered.saveAsync({

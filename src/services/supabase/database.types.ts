@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      comment_mentions: {
+        Row: {
+          comment_id: string
+          created_at: string
+          label: string
+          length_cp: number
+          mentioned_user_id: string
+          start_cp: number
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          label: string
+          length_cp: number
+          mentioned_user_id: string
+          start_cp: number
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          label?: string
+          length_cp?: number
+          mentioned_user_id?: string
+          start_cp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_mentions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "post_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_mentions_mentioned_user_id_fkey"
+            columns: ["mentioned_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_members: {
         Row: {
           conversation_id: string
@@ -367,9 +409,11 @@ export type Database = {
           body: string
           category_id: string | null
           city: string | null
+          comment_count: number
           created_at: string
           id: string
           in_portfolio: boolean
+          like_count: number
           status: string
           title: string
           updated_at: string
@@ -380,9 +424,11 @@ export type Database = {
           body: string
           category_id?: string | null
           city?: string | null
+          comment_count?: number
           created_at?: string
           id?: string
           in_portfolio?: boolean
+          like_count?: number
           status?: string
           title: string
           updated_at?: string
@@ -393,9 +439,11 @@ export type Database = {
           body?: string
           category_id?: string | null
           city?: string | null
+          comment_count?: number
           created_at?: string
           id?: string
           in_portfolio?: boolean
+          like_count?: number
           status?: string
           title?: string
           updated_at?: string
@@ -1114,6 +1162,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      create_post_comment: {
+        Args: { comment_body: string; mentions?: Json; target_post: string }
+        Returns: string
+      }
       due_push_receipts: {
         Args: never
         Returns: {
@@ -1159,12 +1211,23 @@ export type Database = {
           user_id: string
         }[]
       }
+      professional_review_summary: {
+        Args: { target_professional: string }
+        Returns: {
+          average_rating: number
+          review_count: number
+        }[]
+      }
       record_professional_registration_attempt: {
         Args: { subject_id: string }
         Returns: boolean
       }
       register_admin_push_token: {
-        Args: { device_platform: string; previous_token?: string | null; token: string }
+        Args: {
+          device_platform: string
+          previous_token?: string
+          token: string
+        }
         Returns: undefined
       }
       register_push_token: {
@@ -1190,6 +1253,14 @@ export type Database = {
           submitted_siret: string
         }
         Returns: undefined
+      }
+      search_mention_targets: {
+        Args: { search_term: string; target_post: string }
+        Returns: {
+          account_type: string
+          display_name: string
+          user_id: string
+        }[]
       }
       search_professionals: {
         Args: {

@@ -32,6 +32,11 @@ function AppNavigator() {
       <Stack.Screen name="notifications" />
       <Stack.Screen name="quote" />
       <Stack.Screen name="professional/[id]" />
+      <Stack.Screen name="professional/[id]/reviews" />
+      <Stack.Screen name="profile/edit" />
+      <Stack.Screen name="user/[id]" />
+      <Stack.Screen name="post/[id]" />
+      <Stack.Screen name="post/report" />
       <Stack.Screen name="conversation/[id]" />
       <Stack.Screen name="admin/professionals" />
       <Stack.Screen name="admin/support/index" />

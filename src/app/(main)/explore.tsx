@@ -9,6 +9,7 @@ import { colors } from '@/constants/artiz';
 import { useAccountType } from '@/features/auth/use-account-type';
 import { openConversation } from '@/features/messaging/conversations';
 import { supabase } from '@/services/supabase/client';
+import { avatarUrl } from '@/features/profiles/avatars';
 
 export default function ExploreScreen() {
   const [search, setSearch] = useState('');
@@ -51,6 +52,16 @@ export default function ExploreScreen() {
     getNextPageParam: (lastPage, pages) => lastPage.length === 20 ? pages.length : undefined,
   });
   const visible = directory.data?.pages.flat() ?? [];
+  const avatars = useQuery({
+    queryKey: ['directory-avatars', visible.map((item) => item.user_id).join(',')],
+    enabled: Boolean(supabase && visible.length),
+    queryFn: async () => {
+      if (!supabase || !visible.length) return new Map<string, string | null>();
+      const { data, error } = await supabase.from('profiles').select('id,avatar_path').in('id', visible.map((item) => item.user_id));
+      if (error) throw error;
+      return new Map(await Promise.all(data.map(async (person) => [person.id, await avatarUrl(person.avatar_path)] as const)));
+    },
+  });
 
   async function contact(professionalId: string) {
     if (busyId) return;
@@ -75,7 +86,7 @@ export default function ExploreScreen() {
       : visible.length === 0
         ? <EmptyState icon="search-outline" title={search || city || category ? 'Aucun résultat' : 'Aucun artisan pour le moment'} description={search || city || category ? 'Essayez un autre métier, une autre ville ou un autre filtre.' : 'Les profils professionnels apparaîtront ici dès leur publication.'} />
         : visible.map((item) => <View key={item.user_id} style={styles.card}>
-          <Avatar name={item.business_name} />
+          <Avatar name={item.business_name} uri={avatars.data?.get(item.user_id)} />
           <View style={styles.cardBody}><Text style={styles.cardTitle}>{item.business_name}</Text>{item.headline ? <Text style={styles.cardMeta}>{item.headline}</Text> : null}{item.city ? <Text style={styles.cardMeta}>{item.city}</Text> : null}</View>
           <View style={styles.cardActions}>
             <Pressable onPress={() => router.push(`/professional/${item.user_id}`)} accessibilityRole="button" style={styles.cardAction}><Text style={styles.cardActionText}>Voir le profil</Text></Pressable>
