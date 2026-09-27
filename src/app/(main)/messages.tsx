@@ -17,24 +17,9 @@ export default function MessagesScreen() {
     enabled: Boolean(supabase && session),
     queryFn: async () => {
       if (!supabase || !session) return [];
-      const { data: memberships, error: membershipError } = await supabase.from('conversation_members')
-        .select('conversation_id').eq('user_id', session.user.id);
-      if (membershipError) throw membershipError;
-      if (!memberships.length) return [];
-      const { data: threads, error: threadError } = await supabase.from('conversations')
-        .select('id,created_by,recipient_id,created_at')
-        .in('id', memberships.map((member) => member.conversation_id))
-        .order('created_at', { ascending: false });
-      if (threadError) throw threadError;
-      const peerIds = threads.map((thread) => thread.created_by === session.user.id ? thread.recipient_id : thread.created_by);
-      const { data: people, error: peopleError } = await supabase.from('profiles')
-        .select('id,display_name').in('id', peerIds);
-      if (peopleError) throw peopleError;
-      const names = new Map(people.map((person) => [person.id, person.display_name]));
-      return threads.map((thread) => {
-        const peerId = thread.created_by === session.user.id ? thread.recipient_id : thread.created_by;
-        return { id: thread.id, name: names.get(peerId) || 'Membre Artiz', createdAt: thread.created_at };
-      });
+      const { data, error } = await supabase.rpc('list_my_direct_conversations');
+      if (error) throw error;
+      return data;
     },
   });
   return <MainScreen title="Messages" subtitle="Échangez simplement autour de vos projets.">
@@ -43,8 +28,8 @@ export default function MessagesScreen() {
       : conversations.data.length === 0
         ? <EmptyState icon="chatbubble-ellipses-outline" title="Aucune conversation" description="Vos échanges avec les professionnels apparaîtront ici." action="Découvrir les artisans" onPress={() => router.replace('/explore')} />
         : conversations.data.map((thread) => <Pressable key={thread.id} onPress={() => router.push(`/conversation/${thread.id}`)} accessibilityRole="button" style={styles.row}>
-          <Avatar name={thread.name} />
-          <View style={styles.rowBody}><Text style={styles.name}>{thread.name}</Text><Text style={styles.meta}>{unreadByConversation.get(thread.id) ? `${unreadByConversation.get(thread.id)} message(s) non lu(s)` : 'Voir la conversation'}</Text></View>
+          <Avatar name={thread.peer_name} />
+          <View style={styles.rowBody}><Text style={styles.name}>{thread.peer_name}</Text><Text style={styles.meta} numberOfLines={1}>{thread.last_message_body ?? 'Commencer la conversation'}</Text><Text style={styles.meta}>{new Date(thread.last_message_at ?? thread.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}</Text></View>
           {Boolean(unreadByConversation.get(thread.id)) && <View style={styles.unread}><Text style={styles.unreadText}>{unreadByConversation.get(thread.id)}</Text></View>}
           <Text style={styles.arrow}>›</Text>
         </Pressable>)}

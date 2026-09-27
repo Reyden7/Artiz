@@ -14,6 +14,9 @@ insert into public.professional_profiles (user_id, business_name, verification_s
 insert into public.service_requests (id, customer_id, title, description, city) values
   ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000102',
    'Travaux', 'Projet de rénovation', 'Annecy');
+insert into public.service_requests (id, customer_id, recipient_id, title, description, city, visibility) values
+  ('00000000-0000-4000-8000-000000000202', '00000000-0000-4000-8000-000000000101',
+   '00000000-0000-4000-8000-000000000103', 'Devis', 'Projet de terrasse', 'Annecy', 'private');
 insert into public.service_request_responses (request_id, professional_id, message) values
   ('00000000-0000-4000-8000-000000000201', '00000000-0000-4000-8000-000000000103',
    'Je peux vous aider.');
@@ -40,9 +43,13 @@ begin
   exception when insufficient_privilege then null;
   end;
 
-  insert into public.conversations (created_by, recipient_id, context) values
-    ('00000000-0000-4000-8000-000000000101',
-     '00000000-0000-4000-8000-000000000103', 'profile') returning id into direct_id;
+  direct_id := public.get_or_create_direct_conversation(
+    '00000000-0000-4000-8000-000000000103', 'profile', null);
+  if public.get_or_create_direct_conversation(
+    '00000000-0000-4000-8000-000000000103', 'quote',
+    '00000000-0000-4000-8000-000000000202') <> direct_id then
+    raise exception 'Quote created a second direct conversation';
+  end if;
   if (select count(*) from public.conversation_members
       where conversation_id = direct_id) <> 2 then
     raise exception 'validated conversation did not receive exactly two members';
@@ -94,16 +101,21 @@ begin
   exception when insufficient_privilege then null;
   end;
 
-  insert into public.conversations (created_by, recipient_id, context, request_id) values
-    ('00000000-0000-4000-8000-000000000103',
-     '00000000-0000-4000-8000-000000000102', 'request',
-     '00000000-0000-4000-8000-000000000201') returning id into request_conversation;
+  request_conversation := public.get_or_create_direct_conversation(
+    '00000000-0000-4000-8000-000000000102', 'request',
+    '00000000-0000-4000-8000-000000000201');
+  if public.get_or_create_direct_conversation(
+    '00000000-0000-4000-8000-000000000102', 'request',
+    '00000000-0000-4000-8000-000000000201') <> request_conversation then
+    raise exception 'Repeated request created a second conversation';
+  end if;
   if (select count(*) from public.conversation_members
       where conversation_id = request_conversation) <> 2 then
     raise exception 'request conversation did not receive exactly two members';
   end if;
-  insert into public.messages (conversation_id, sender_id, body) values
-    (request_conversation, '00000000-0000-4000-8000-000000000103', 'Bonjour');
+  insert into public.messages (conversation_id, sender_id, body, service_request_id) values
+    (request_conversation, '00000000-0000-4000-8000-000000000103', 'Bonjour',
+     '00000000-0000-4000-8000-000000000201');
 end;
 $$;
 
@@ -112,10 +124,23 @@ do $$
 declare request_conversation uuid;
 begin
   select id into request_conversation from public.conversations
-  where request_id = '00000000-0000-4000-8000-000000000201';
+  where least(created_by, recipient_id) = '00000000-0000-4000-8000-000000000102'::uuid
+    and greatest(created_by, recipient_id) = '00000000-0000-4000-8000-000000000103'::uuid;
   insert into public.messages (conversation_id, sender_id, body) values
     (request_conversation, '00000000-0000-4000-8000-000000000102', 'Merci pour votre réponse');
 end;
 $$;
+
+reset role;
+do $$ begin
+  begin
+    insert into public.conversations (created_by, recipient_id, context, request_id) values
+      ('00000000-0000-4000-8000-000000000103',
+       '00000000-0000-4000-8000-000000000101', 'request',
+       '00000000-0000-4000-8000-000000000202');
+    raise exception 'Canonical pair unique index did not reject a duplicate';
+  exception when unique_violation then null;
+  end;
+end $$;
 
 rollback;

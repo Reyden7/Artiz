@@ -151,6 +151,7 @@ export type Database = {
           created_at: string
           id: string
           sender_id: string
+          service_request_id: string | null
         }
         Insert: {
           body: string
@@ -158,6 +159,7 @@ export type Database = {
           created_at?: string
           id?: string
           sender_id: string
+          service_request_id?: string | null
         }
         Update: {
           body?: string
@@ -165,6 +167,7 @@ export type Database = {
           created_at?: string
           id?: string
           sender_id?: string
+          service_request_id?: string | null
         }
         Relationships: [
           {
@@ -179,6 +182,13 @@ export type Database = {
             columns: ["sender_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -1190,8 +1200,23 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_or_create_direct_conversation: {
+        Args: { target_id: string; contact_context: string; target_request_id?: string | null }
+        Returns: string
+      }
       is_artiz_admin: { Args: { subject_id: string }; Returns: boolean }
       is_artiz_admin_self: { Args: never; Returns: boolean }
+      list_my_direct_conversations: {
+        Args: never
+        Returns: {
+          id: string
+          peer_id: string
+          peer_name: string
+          created_at: string
+          last_message_body: string | null
+          last_message_at: string | null
+        }[]
+      }
       mark_conversation_read: {
         Args: { target_conversation: string; through_message: string }
         Returns: undefined
@@ -1218,6 +1243,14 @@ export type Database = {
           review_count: number
         }[]
       }
+      professional_rating_summaries: {
+        Args: { target_professionals: string[] }
+        Returns: {
+          user_id: string
+          average_rating: number | null
+          review_count: number
+        }[]
+      }
       record_professional_registration_attempt: {
         Args: { subject_id: string }
         Returns: boolean
@@ -1233,6 +1266,17 @@ export type Database = {
       register_push_token: {
         Args: { device_platform: string; token: string }
         Returns: undefined
+      }
+      replace_own_post: {
+        Args: {
+          target_post: string
+          new_title: string
+          new_body: string
+          new_category: string
+          new_city: string
+          image_paths: string[]
+        }
+        Returns: string[]
       }
       review_professional_affiliation: {
         Args: {

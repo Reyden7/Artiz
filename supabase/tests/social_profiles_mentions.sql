@@ -71,6 +71,10 @@ do $$ begin
   if not exists (select 1 from public.professional_review_summary('00000000-0000-4000-8000-000000000a03')
     where review_count = 1 and average_rating = 4.0) then
     raise exception 'Professional review summary incorrect'; end if;
+  if not exists (select 1 from public.professional_rating_summaries(
+      array['00000000-0000-4000-8000-000000000a03'::uuid])
+    where review_count = 1 and average_rating = 4.0) then
+    raise exception 'Directory star rating incorrect'; end if;
 end $$;
 insert into public.reports (reporter_id, target_post_id, reason)
 values ('00000000-0000-4000-8000-000000000a01', '00000000-0000-4000-8000-000000000a04', 'Publication à vérifier');

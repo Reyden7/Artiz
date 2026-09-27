@@ -45,6 +45,7 @@ export default function QuoteScreen() {
       const { error: messageError } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         sender_id: session.user.id,
+        service_request_id: requestId,
         body: `Demande de devis : ${project.trim()}\n${details.trim()}`,
       });
       if (messageError) throw messageError;

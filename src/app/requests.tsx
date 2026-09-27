@@ -64,6 +64,7 @@ export default function RequestsScreen() {
       const { error: messageError } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         sender_id: session.user.id,
+        service_request_id: requestId,
         body: response.trim(),
       });
       if (messageError) throw messageError;

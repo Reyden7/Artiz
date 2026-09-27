@@ -39,6 +39,8 @@ export default function PostScreen() {
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [busy, setBusy] = useState(false);
   const [term, setTerm] = useState('');
+  const [ownerMenuOpen, setOwnerMenuOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const post = useQuery({
     queryKey: ['post', id], enabled: Boolean(supabase && id),
     queryFn: async () => {
@@ -72,7 +74,7 @@ export default function PostScreen() {
         const { data } = await supabase!.storage.from('post-images').createSignedUrl(photo.storage_path, 600);
         return data?.signedUrl ?? null;
       }));
-      return { ...item.data, authorName: names.get(item.data.author_id) ?? 'Artisan Artiz', authorAvatar: avatars.get(item.data.author_id),
+      return { ...item.data, imagePaths: photos.data.map((photo) => photo.storage_path), authorName: names.get(item.data.author_id) ?? 'Artisan Artiz', authorAvatar: avatars.get(item.data.author_id),
         images: urls.filter((url): url is string => Boolean(url)), liked: Boolean(like.data),
         comments: comments.data.map((comment) => ({ ...comment, name: names.get(comment.author_id) ?? 'Membre Artiz', avatar: avatars.get(comment.author_id),
           mentions: relations.data.filter((relation) => relation.comment_id === comment.id).map((relation) => ({ ...relation, user_id: relation.mentioned_user_id, account_type: types.get(relation.mentioned_user_id) ?? 'customer' })) })) };
@@ -139,12 +141,42 @@ export default function PostScreen() {
     else { await queryClient.invalidateQueries({ queryKey: ['post', id] }); await queryClient.invalidateQueries({ queryKey: ['posts-feed'] }); }
   }
 
+  async function deletePost() {
+    if (!supabase || !id || !post.data || post.data.author_id !== userId || busy) return;
+    setBusy(true);
+    const imagePaths = post.data.imagePaths;
+    const { data, error } = await supabase.from('posts').delete().eq('id', id).eq('author_id', userId)
+      .select('id').maybeSingle();
+    if (error || !data) {
+      setBusy(false);
+      Alert.alert('Suppression impossible', 'Cette publication n’a pas pu être supprimée.');
+      return;
+    }
+    const cleanup = imagePaths.length ? await supabase.storage.from('post-images').remove(imagePaths) : null;
+    queryClient.removeQueries({ queryKey: ['post', id] });
+    await queryClient.invalidateQueries({ queryKey: ['posts-feed'] });
+    await queryClient.invalidateQueries({ queryKey: ['professional', userId] });
+    router.replace('/home');
+    if (cleanup?.error) Alert.alert('Publication supprimée', 'Certaines photos n’ont pas pu être effacées du stockage.');
+  }
+
   return <AppScreen title="Publication" keyboardExtraSpace={150}>
     {post.isPending ? <ActivityIndicator color={colors.blue} /> : post.error || !post.data
       ? <EmptyState icon="images-outline" title="Publication indisponible" description="Elle a peut-être été retirée ou n’est pas visible pour vous." />
       : <>
         <View style={styles.card}>
-          <Pressable style={styles.author} onPress={() => router.push({ pathname: '/professional/[id]', params: { id: post.data!.author_id } })}><Avatar name={post.data.authorName} uri={post.data.authorAvatar} /><Text style={styles.name}>{post.data.authorName}</Text></Pressable>
+          <View style={styles.authorRow}><Pressable style={styles.author} onPress={() => router.push({ pathname: '/professional/[id]', params: { id: post.data!.author_id } })}><Avatar name={post.data.authorName} uri={post.data.authorAvatar} /><Text style={styles.name}>{post.data.authorName}</Text></Pressable>
+            {post.data.author_id === userId && <Pressable accessibilityRole="button" accessibilityLabel="Options de ma publication" onPress={() => { setOwnerMenuOpen((open) => !open); setConfirmDelete(false); }}><Text style={styles.ellipsis}>⋯</Text></Pressable>}
+          </View>
+          {post.data.author_id === userId && ownerMenuOpen && <View style={styles.ownerMenu}>
+            <Pressable onPress={() => router.push({ pathname: '/post/edit/[id]', params: { id } })}><Text style={styles.link}>Modifier</Text></Pressable>
+            <Pressable onPress={() => setConfirmDelete(true)}><Text style={styles.destructive}>Supprimer</Text></Pressable>
+          </View>}
+          {post.data.author_id === userId && confirmDelete && <View style={styles.deleteConfirm}>
+            <Text style={styles.destructive}>Supprimer définitivement cette publication et ses photos ?</Text>
+            <PrimaryButton title={busy ? 'Suppression…' : 'Confirmer la suppression'} onPress={() => void deletePost()} disabled={busy} />
+            <PrimaryButton title="Annuler" outline onPress={() => setConfirmDelete(false)} disabled={busy} />
+          </View>}
           <Text style={styles.title}>{post.data.title}</Text><Text style={styles.body}>{post.data.body}</Text>
           {post.data.images.map((url, index) => <Image key={url} source={{ uri: url }} contentFit="cover" style={styles.image} accessibilityLabel={`Photo ${index + 1}`} />)}
           <View style={styles.actions}><Pressable onPress={() => void toggleLike()} disabled={busy}><Text style={styles.link}>{post.data.liked ? '♥' : '♡'} {post.data.like_count} j’aime</Text></Pressable><Text style={styles.meta}>{post.data.comment_count} commentaires</Text><Pressable onPress={() => router.push({ pathname: '/post/report', params: { id } })}><Text style={styles.meta}>Signaler</Text></Pressable></View>
@@ -167,6 +199,11 @@ export default function PostScreen() {
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.white, padding: 16, borderWidth: 1, borderColor: colors.divider, borderRadius: 16, gap: 12 },
   author: { flexDirection: 'row', alignItems: 'center', gap: 9 }, name: { color: colors.navy, fontWeight: '700' },
+  authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  ellipsis: { color: colors.navy, fontSize: 27, paddingHorizontal: 10 },
+  ownerMenu: { borderWidth: 1, borderColor: colors.divider, borderRadius: 10, padding: 12, gap: 14 },
+  destructive: { color: colors.red, fontWeight: '700' },
+  deleteConfirm: { borderWidth: 1, borderColor: colors.red, borderRadius: 10, padding: 12, gap: 10 },
   title: { color: colors.navy, fontWeight: '700', fontSize: 19 }, body: { color: colors.navy, lineHeight: 22 },
   image: { width: '100%', aspectRatio: 4 / 3, borderRadius: 12 },
   actions: { flexDirection: 'row', gap: 14, flexWrap: 'wrap', alignItems: 'center' },

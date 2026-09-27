@@ -32,6 +32,8 @@ const pageSize = 20;
 export default function HomeScreen() {
   const [tab, setTab] = useState<FeedTab>('feed');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [menuPostId, setMenuPostId] = useState<string | null>(null);
+  const [confirmDeletePostId, setConfirmDeletePostId] = useState<string | null>(null);
   const { session } = useAuth();
   const account = useAccountType();
   const queryClient = useQueryClient();
@@ -132,6 +134,32 @@ export default function HomeScreen() {
     else await queryClient.invalidateQueries({ queryKey: ['posts-feed'] });
   }
 
+  async function deletePost(post: FeedPost) {
+    if (!supabase || !session || busyId || post.author_id !== session.user.id) return;
+    setBusyId(post.id);
+    const photos = await supabase.from('post_images').select('storage_path').eq('post_id', post.id);
+    if (photos.error) {
+      setBusyId(null);
+      Alert.alert('Suppression impossible', photos.error.message);
+      return;
+    }
+    const removed = await supabase.from('posts').delete().eq('id', post.id).eq('author_id', session.user.id).select('id').maybeSingle();
+    if (removed.error || !removed.data) {
+      setBusyId(null);
+      Alert.alert('Suppression impossible', 'Cette publication n’a pas pu être supprimée.');
+      return;
+    }
+    const paths = photos.data.map((photo) => photo.storage_path);
+    const cleanup = paths.length ? await supabase.storage.from('post-images').remove(paths) : null;
+    setBusyId(null);
+    setMenuPostId(null);
+    setConfirmDeletePostId(null);
+    queryClient.removeQueries({ queryKey: ['post', post.id] });
+    await queryClient.invalidateQueries({ queryKey: ['posts-feed'] });
+    await queryClient.invalidateQueries({ queryKey: ['professional', session.user.id] });
+    if (cleanup?.error) Alert.alert('Publication supprimée', 'Certaines photos n’ont pas pu être effacées du stockage.');
+  }
+
   const empty = filters.error || feed.error
     ? <EmptyState icon="alert-circle-outline" title="Fil indisponible" description="Impossible de charger les publications pour le moment." />
     : tab === 'feed'
@@ -156,7 +184,18 @@ export default function HomeScreen() {
     onEndReached={() => { if (feed.hasNextPage && !feed.isFetchingNextPage) void feed.fetchNextPage(); }}
     onEndReachedThreshold={0.4}
     renderItem={({ item: post }) => <View style={styles.card}>
-      <Pressable onPress={() => router.push(`/professional/${post.author_id}`)} style={styles.author} accessibilityRole="button"><Avatar name={post.authorName} uri={post.avatarUrl} /><View><Text style={styles.authorName}>{post.authorName}</Text>{post.city ? <Text style={styles.location}>{post.city}</Text> : null}</View></Pressable>
+      <View style={styles.authorRow}><Pressable onPress={() => router.push(`/professional/${post.author_id}`)} style={styles.author} accessibilityRole="button"><Avatar name={post.authorName} uri={post.avatarUrl} /><View><Text style={styles.authorName}>{post.authorName}</Text>{post.city ? <Text style={styles.location}>{post.city}</Text> : null}</View></Pressable>
+        {post.author_id === session?.user.id && <Pressable accessibilityRole="button" accessibilityLabel="Options de ma publication" onPress={() => { setMenuPostId(menuPostId === post.id ? null : post.id); setConfirmDeletePostId(null); }}><Text style={styles.ellipsis}>⋯</Text></Pressable>}
+      </View>
+      {post.author_id === session?.user.id && menuPostId === post.id && <View style={styles.ownerMenu}>
+        <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/post/edit/[id]', params: { id: post.id } })}><Text style={styles.menuAction}>Modifier</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => setConfirmDeletePostId(post.id)}><Text style={styles.deleteAction}>Supprimer</Text></Pressable>
+      </View>}
+      {post.author_id === session?.user.id && confirmDeletePostId === post.id && <View style={styles.ownerMenu}>
+        <Text style={styles.deleteAction}>Supprimer définitivement cette publication et ses photos ?</Text>
+        <Pressable accessibilityRole="button" disabled={Boolean(busyId)} onPress={() => void deletePost(post)}><Text style={styles.deleteAction}>{busyId === post.id ? 'Suppression…' : 'Confirmer la suppression'}</Text></Pressable>
+        <Pressable accessibilityRole="button" disabled={Boolean(busyId)} onPress={() => setConfirmDeletePostId(null)}><Text style={styles.menuAction}>Annuler</Text></Pressable>
+      </View>}
       <Text style={styles.postTitle}>{post.title}</Text>
       <Text style={styles.postBody}>{post.body}</Text>
       {post.imageUrl ? <Pressable onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id } })}><Image source={{ uri: post.imageUrl }} contentFit="cover" style={styles.postImage} /></Pressable> : null}
@@ -188,6 +227,11 @@ const styles = StyleSheet.create({
   tabTextActive: { color: colors.orange, fontWeight: '700' },
   card: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 16, padding: 14, gap: 12, overflow: 'hidden' },
   author: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  ellipsis: { color: colors.navy, fontSize: 27, paddingHorizontal: 10 },
+  ownerMenu: { borderWidth: 1, borderColor: colors.divider, borderRadius: 10, padding: 12, gap: 14 },
+  menuAction: { color: colors.blue, fontWeight: '700' },
+  deleteAction: { color: colors.red, fontWeight: '700' },
   authorName: { color: colors.navy, fontWeight: '700' },
   location: { color: colors.muted, fontSize: 13 },
   postTitle: { color: colors.navy, fontSize: 18, fontWeight: '700' },

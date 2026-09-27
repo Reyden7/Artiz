@@ -62,6 +62,18 @@ export default function ExploreScreen() {
       return new Map(await Promise.all(data.map(async (person) => [person.id, await avatarUrl(person.avatar_path)] as const)));
     },
   });
+  const ratings = useQuery({
+    queryKey: ['directory-ratings', visible.map((item) => item.user_id).join(',')],
+    enabled: Boolean(supabase && visible.length),
+    queryFn: async () => {
+      if (!supabase || !visible.length) return new Map<string, { average: number | null; count: number }>();
+      const { data, error } = await supabase.rpc('professional_rating_summaries', {
+        target_professionals: visible.map((item) => item.user_id),
+      });
+      if (error) throw error;
+      return new Map(data.map((item) => [item.user_id, { average: item.average_rating, count: item.review_count }]));
+    },
+  });
 
   async function contact(professionalId: string) {
     if (busyId) return;
@@ -76,7 +88,7 @@ export default function ExploreScreen() {
     }
   }
 
-  return <MainScreen title="Découvrir" subtitle="Explorez les métiers et les réalisations près de chez vous.">
+  return <MainScreen title="Rechercher" subtitle="Explorez les métiers et les réalisations près de chez vous.">
     <Field value={search} onChangeText={setSearch} placeholder="Un artisan, un métier, une ville…" accessibilityLabel="Rechercher" />
     <Field value={city} onChangeText={setCity} placeholder="Filtrer par ville" accessibilityLabel="Filtrer par ville" />
     <View style={styles.chips}><Pressable onPress={() => setCategory(null)} style={[styles.chip, category === null && styles.chipActive]}><Text style={[styles.chipText, category === null && styles.chipTextActive]}>Tous</Text></Pressable>{(categories.data ?? []).map((item) => <Pressable key={item.id} onPress={() => setCategory(item.id)} style={[styles.chip, category === item.id && styles.chipActive]}><Text style={[styles.chipText, category === item.id && styles.chipTextActive]}>{item.name}</Text></Pressable>)}</View>
@@ -87,7 +99,10 @@ export default function ExploreScreen() {
         ? <EmptyState icon="search-outline" title={search || city || category ? 'Aucun résultat' : 'Aucun artisan pour le moment'} description={search || city || category ? 'Essayez un autre métier, une autre ville ou un autre filtre.' : 'Les profils professionnels apparaîtront ici dès leur publication.'} />
         : visible.map((item) => <View key={item.user_id} style={styles.card}>
           <Avatar name={item.business_name} uri={avatars.data?.get(item.user_id)} />
-          <View style={styles.cardBody}><Text style={styles.cardTitle}>{item.business_name}</Text>{item.headline ? <Text style={styles.cardMeta}>{item.headline}</Text> : null}{item.city ? <Text style={styles.cardMeta}>{item.city}</Text> : null}</View>
+          <View style={styles.cardBody}><Text style={styles.cardTitle}>{item.business_name}</Text>{item.headline ? <Text style={styles.cardMeta}>{item.headline}</Text> : null}{item.city ? <Text style={styles.cardMeta}>{item.city}</Text> : null}
+            <Text style={styles.rating}>{ratings.data?.get(item.user_id)?.count
+              ? `★ ${ratings.data.get(item.user_id)!.average} / 5 · ${ratings.data.get(item.user_id)!.count} avis`
+              : '☆☆☆☆☆ · Aucun avis'}</Text></View>
           <View style={styles.cardActions}>
             <Pressable onPress={() => router.push(`/professional/${item.user_id}`)} accessibilityRole="button" style={styles.cardAction}><Text style={styles.cardActionText}>Voir le profil</Text></Pressable>
             {account.data === 'customer' && <Pressable onPress={() => contact(item.user_id)} disabled={Boolean(busyId)} accessibilityRole="button" style={styles.cardAction}><Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.blue} /><Text style={styles.cardActionText}>{busyId === item.user_id ? 'Ouverture…' : 'Contacter'}</Text></Pressable>}
@@ -107,6 +122,7 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1, gap: 3, minWidth: 160 },
   cardTitle: { color: colors.navy, fontSize: 17, fontWeight: '700' },
   cardMeta: { color: colors.muted, fontSize: 13 },
+  rating: { color: colors.orange, fontSize: 13, fontWeight: '700' },
   cardActions: { width: '100%', flexDirection: 'row', gap: 10 },
   cardAction: { minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
   cardActionText: { color: colors.blue, fontWeight: '600' },

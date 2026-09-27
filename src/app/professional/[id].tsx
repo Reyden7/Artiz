@@ -1,20 +1,26 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/typography';
-import { AppScreen, Avatar, EmptyState, PrimaryButton } from '@/components/artiz-ui';
+import { AppScreen, Avatar, EmptyState, Field, PrimaryButton } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
 import { useAccountType } from '@/features/auth/use-account-type';
 import { openConversation } from '@/features/messaging/conversations';
 import { supabase } from '@/services/supabase/client';
 import { avatarUrl } from '@/features/profiles/avatars';
+import { useAuth } from '@/features/auth/auth-context';
 
 export default function ProfessionalScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
   const account = useAccountType();
   const [busy, setBusy] = useState(false);
+  const [selectedRating, setRating] = useState<number | null>(null);
+  const [reviewDraft, setReviewBody] = useState<string | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
   const professional = useQuery({
     queryKey: ['professional', id],
     enabled: Boolean(supabase && id),
@@ -56,6 +62,21 @@ export default function ProfessionalScreen() {
         portfolio: posts.data.map((post) => ({ ...post, image: urls.get(firstImages.get(post.id) ?? '') ?? null })) };
     },
   });
+  const myReview = useQuery({
+    queryKey: ['my-professional-review', id, session?.user.id],
+    enabled: Boolean(supabase && id && session && account.data === 'customer'),
+    queryFn: async () => {
+      if (!supabase || !id || !session) return null;
+      const { data, error } = await supabase.from('reviews')
+        .select('id,rating,body').eq('professional_id', id)
+        .eq('customer_id', session.user.id).is('request_id', null).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const rating = selectedRating ?? myReview.data?.rating ?? 0;
+  const reviewBody = reviewDraft ?? myReview.data?.body ?? '';
 
   async function contact() {
     if (!id || busy) return;
@@ -70,6 +91,22 @@ export default function ProfessionalScreen() {
     }
   }
 
+  async function saveReview() {
+    if (!supabase || !id || !session || account.data !== 'customer' || rating < 1 || rating > 5 || reviewBusy) return;
+    setReviewBusy(true);
+    const value = reviewBody.trim();
+    const result = myReview.data
+      ? await supabase.from('reviews').update({ rating, body: value || null }).eq('id', myReview.data.id).select('id').maybeSingle()
+      : await supabase.from('reviews').insert({ customer_id: session.user.id, professional_id: id, rating, body: value || null }).select('id').maybeSingle();
+    setReviewBusy(false);
+    if (result.error || !result.data) Alert.alert('Avis non enregistré', 'Vérifiez votre note et réessayez.');
+    else {
+      await queryClient.invalidateQueries({ queryKey: ['professional', id] });
+      await queryClient.invalidateQueries({ queryKey: ['my-professional-review', id] });
+      Alert.alert('Merci', 'Votre avis a été enregistré.');
+    }
+  }
+
   return <AppScreen title="Profil professionnel">
     {professional.isPending ? <ActivityIndicator color={colors.blue} /> : professional.error || !professional.data
       ? <EmptyState icon="person-outline" title="Profil indisponible" description="Ce profil professionnel n’est pas disponible pour le moment." action="Découvrir les artisans" onPress={() => router.replace('/explore')} />
@@ -78,7 +115,9 @@ export default function ProfessionalScreen() {
         <Text style={styles.title}>{professional.data.business_name}</Text>
         {professional.data.headline ? <Text style={styles.headline}>{professional.data.headline}</Text> : null}
         <Text style={styles.meta}>{professional.data.displayName}{professional.data.city ? ` · ${professional.data.city}` : ''}</Text>
-        <Text style={styles.rating}>{professional.data.reviewSummary?.review_count ? `★ ${professional.data.reviewSummary.average_rating} / 5 · ${professional.data.reviewSummary.review_count} avis` : 'Aucun avis pour le moment'}</Text>
+        <Text style={styles.rating}>{professional.data.reviewSummary?.review_count
+          ? `${'★'.repeat(Math.round(professional.data.reviewSummary.average_rating))}${'☆'.repeat(5 - Math.round(professional.data.reviewSummary.average_rating))} · ${professional.data.reviewSummary.average_rating} / 5 · ${professional.data.reviewSummary.review_count} avis`
+          : '☆☆☆☆☆ · Aucun avis pour le moment'}</Text>
         {professional.data.bio ? <Text style={styles.description}>{professional.data.bio}</Text> : null}
         {professional.data.description ? <Text style={styles.description}>{professional.data.description}</Text> : null}
         {account.data === 'customer' && <View style={styles.actions}>
@@ -91,6 +130,18 @@ export default function ProfessionalScreen() {
           <Text style={styles.portfolioTitle}>{post.title}</Text>
         </Pressable>) : <Text style={styles.meta}>Aucune réalisation publiée.</Text>}
         <Text style={styles.section}>Avis ({professional.data.reviewSummary?.review_count ?? 0})</Text>
+        {account.data === 'customer' && <View style={styles.reviewForm}>
+          <Text style={styles.reviewName}>{myReview.data ? 'Modifier ma note' : 'Noter ce professionnel'}</Text>
+          <View style={styles.stars}>{[1, 2, 3, 4, 5].map((value) => <Pressable key={value}
+            onPress={() => setRating(value)} accessibilityRole="radio"
+            accessibilityLabel={`${value} étoile${value > 1 ? 's' : ''}`}
+            accessibilityState={{ selected: rating === value }} disabled={reviewBusy}>
+            <Text style={styles.star}>{value <= rating ? '★' : '☆'}</Text>
+          </Pressable>)}</View>
+          <Field label="Votre avis (facultatif)" value={reviewBody} onChangeText={setReviewBody} multiline maxLength={2000} editable={!reviewBusy} />
+          <PrimaryButton title={reviewBusy ? 'Enregistrement…' : myReview.data ? 'Modifier mon avis' : 'Publier mon avis'}
+            onPress={() => void saveReview()} disabled={reviewBusy || rating === 0 || myReview.isPending} />
+        </View>}
         {professional.data.reviews.length ? professional.data.reviews.map((review) => <View key={review.id} style={styles.review}>
           <Pressable onPress={() => router.push({ pathname: '/user/[id]', params: { id: review.customer_id } })}><Text style={styles.reviewName}>{review.customerName}</Text></Pressable>
           <Text style={styles.rating}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)} · {new Date(review.created_at).toLocaleDateString('fr-FR')}</Text>
@@ -109,6 +160,8 @@ const styles = StyleSheet.create({
   description: { color: colors.navy, lineHeight: 22, alignSelf: 'stretch' },
   actions: { width: '100%', gap: 10, marginTop: 10 },
   rating: { color: colors.orange, fontWeight: '700' },
+  reviewForm: { alignSelf: 'stretch', borderWidth: 1, borderColor: colors.divider, borderRadius: 12, padding: 14, gap: 10 },
+  stars: { flexDirection: 'row', gap: 8 }, star: { color: colors.orange, fontSize: 36 },
   section: { alignSelf: 'stretch', color: colors.navy, fontSize: 19, fontWeight: '700', marginTop: 14 },
   review: { alignSelf: 'stretch', borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 12, gap: 5 },
   reviewName: { color: colors.blue, fontWeight: '700' },

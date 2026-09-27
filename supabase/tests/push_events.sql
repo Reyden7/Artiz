@@ -43,14 +43,16 @@ update public.professional_profiles set verification_status = 'verified'
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000931', true);
-insert into public.conversations (id, created_by, recipient_id, context) values
-  ('00000000-0000-4000-8000-000000000939', '00000000-0000-4000-8000-000000000931',
-   '00000000-0000-4000-8000-000000000932', 'profile');
-insert into public.messages (conversation_id, sender_id, body) values
-  ('00000000-0000-4000-8000-000000000939', '00000000-0000-4000-8000-000000000931', 'Bonjour');
+select public.get_or_create_direct_conversation('00000000-0000-4000-8000-000000000932', 'profile');
+insert into public.messages (conversation_id, sender_id, body)
+  select id, '00000000-0000-4000-8000-000000000931', 'Bonjour'
+  from public.conversations where created_by = '00000000-0000-4000-8000-000000000931'
+    and recipient_id = '00000000-0000-4000-8000-000000000932';
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000932', true);
-insert into public.messages (conversation_id, sender_id, body) values
-  ('00000000-0000-4000-8000-000000000939', '00000000-0000-4000-8000-000000000932', 'Bonjour à vous');
+insert into public.messages (conversation_id, sender_id, body)
+  select id, '00000000-0000-4000-8000-000000000932', 'Bonjour à vous'
+  from public.conversations where created_by = '00000000-0000-4000-8000-000000000931'
+    and recipient_id = '00000000-0000-4000-8000-000000000932';
 reset role;
 do $$ begin
   if (select count(*) from public.notifications where recipient_id = '00000000-0000-4000-8000-000000000932'
@@ -65,6 +67,11 @@ do $$ begin
       where n.kind = 'new_message') <> 2 then
     raise exception 'message push deliveries were not queued';
   end if;
+  if exists (select 1 from public.notifications n where n.kind = 'new_message'
+      and (n.actor_id = n.recipient_id
+        or n.payload ? 'body' or n.payload ? 'message' or n.payload ? 'sender')) then
+    raise exception 'message notification targeted its sender or leaked private content';
+  end if;
 end; $$;
 
 set local role authenticated;
@@ -72,8 +79,10 @@ select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000932
 update public.notification_preferences set new_messages = false
   where user_id = '00000000-0000-4000-8000-000000000932';
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000931', true);
-insert into public.messages (conversation_id, sender_id, body) values
-  ('00000000-0000-4000-8000-000000000939', '00000000-0000-4000-8000-000000000931', 'Encore une question');
+insert into public.messages (conversation_id, sender_id, body)
+  select id, '00000000-0000-4000-8000-000000000931', 'Encore une question'
+  from public.conversations where created_by = '00000000-0000-4000-8000-000000000931'
+    and recipient_id = '00000000-0000-4000-8000-000000000932';
 insert into public.service_requests (id, customer_id, title, description, city) values
   ('00000000-0000-4000-8000-000000000938', '00000000-0000-4000-8000-000000000931',
    'Projet de test', 'Besoin pour vérifier la réponse et sa notification.', 'Annecy');

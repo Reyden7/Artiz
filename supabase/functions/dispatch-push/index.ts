@@ -17,6 +17,14 @@ type Delivery = {
 };
 
 function content(delivery: Delivery) {
+  if (delivery.kind === 'new_message') {
+    const conversationId = delivery.payload.conversation_id;
+    if (typeof conversationId !== 'string' || !/^[0-9a-f-]{36}$/i.test(conversationId)) {
+      throw new Error('Invalid conversation notification');
+    }
+    return { title: 'Nouveau message', body: 'Vous avez reçu un nouveau message sur Artiz.',
+      url: `/conversation/${conversationId}` };
+  }
   const requestId = delivery.payload.support_request_id;
   return { title: 'Nouvelle demande de support', body: 'Une nouvelle demande attend votre attention.',
     url: typeof requestId === 'string' && /^[0-9a-f-]{36}$/i.test(requestId)
@@ -72,8 +80,7 @@ Deno.serve(async (request: Request) => {
   const delivery = (data as Delivery[] | null)?.[0];
   if (!delivery) return reply(200, { skipped: true });
 
-  // This deployment is explicitly limited to support alerts.
-  if (delivery.kind !== 'support_request') {
+  if (delivery.kind !== 'support_request' && delivery.kind !== 'new_message') {
     await server.rpc('finish_push_delivery', {
       delivery_id: delivery.id, result_status: 'pending', ticket_id: null,
       error_message: 'Unsupported notification kind',
@@ -86,7 +93,7 @@ Deno.serve(async (request: Request) => {
     const response = await fetch(sendUrl, {
       method: 'POST', headers: jsonHeaders,
       body: JSON.stringify({ to: delivery.expo_push_token, title: message.title,
-        body: message.body, data: { url: message.url }, channelId: 'artiz-updates' }),
+        body: message.body, data: { url: message.url, kind: delivery.kind }, channelId: 'artiz-updates' }),
       signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) throw new Error(`Expo HTTP ${response.status}`);

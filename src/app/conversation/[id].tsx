@@ -37,10 +37,16 @@ export default function ConversationScreen() {
     queryFn: async () => {
       if (!supabase || !id) return [];
       const { data, error } = await supabase.from('messages')
-        .select('id,sender_id,body,created_at').eq('conversation_id', id)
+        .select('id,sender_id,body,created_at,service_request_id').eq('conversation_id', id)
         .order('created_at', { ascending: false }).limit(100);
       if (error) throw error;
-      return data.reverse();
+      const requestIds = [...new Set(data.map((message) => message.service_request_id).filter((value): value is string => Boolean(value)))];
+      const requests = requestIds.length ? await supabase.from('service_requests')
+        .select('id,title,visibility').in('id', requestIds) : { data: [], error: null };
+      if (requests.error) throw requests.error;
+      const contexts = new Map(requests.data.map((request) => [request.id, request]));
+      return data.reverse().map((message) => ({ ...message,
+        request: message.service_request_id ? contexts.get(message.service_request_id) ?? null : null }));
     },
   });
 
@@ -80,6 +86,7 @@ export default function ConversationScreen() {
           : messages.data.length === 0
             ? <Text style={styles.intro}>Présentez votre projet et commencez la discussion.</Text>
             : messages.data.map((message) => <View key={message.id} style={[styles.bubble, message.sender_id === session?.user.id ? styles.mine : styles.theirs]}>
+              {message.request && <Text style={[styles.context, message.sender_id === session?.user.id && styles.mineText]}>{message.request.visibility === 'private' ? 'Demande de devis' : 'Demande de service'} — {message.request.title}</Text>}
               <Text style={[styles.message, message.sender_id === session?.user.id && styles.mineText]}>{message.body}</Text>
               <Text style={[styles.time, message.sender_id === session?.user.id && styles.mineText]}>{new Date(message.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</Text>
             </View>)}
@@ -93,6 +100,7 @@ const styles = StyleSheet.create({
   mine: { backgroundColor: colors.blue, alignSelf: 'flex-end' },
   theirs: { backgroundColor: colors.pale, alignSelf: 'flex-start' },
   message: { color: colors.navy, lineHeight: 21 },
+  context: { color: colors.blue, fontWeight: '700', fontSize: 12 },
   mineText: { color: colors.white },
   time: { color: colors.muted, fontSize: 11, alignSelf: 'flex-end' },
   composer: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.divider, borderRadius: 14, padding: 14, gap: 12 },

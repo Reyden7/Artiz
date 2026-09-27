@@ -20,7 +20,7 @@ export function usePushRegistration(userId: string | undefined) {
         await registerPushForCurrentDevice({
           userId: activeUserId,
           adminOnly: isAdmin === true,
-          requestPermission: requestPermission && isAdmin === true,
+          requestPermission,
         });
         lastError = '';
       } catch (cause) {

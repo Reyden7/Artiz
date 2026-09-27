@@ -34,49 +34,39 @@ export function IconButton({ icon, onPress, badgeCount, label }: { icon: IconNam
 
 const navigation: { label: string; icon: IconName; path: '/home' | '/explore' | '/create' | '/messages' | '/profile' }[] = [
   { label: 'Accueil', icon: 'home-outline', path: '/home' },
-  { label: 'Découvrir', icon: 'compass-outline', path: '/explore' },
+  { label: 'Rechercher', icon: 'search-outline', path: '/explore' },
   { label: 'Publier', icon: 'add-outline', path: '/create' },
   { label: 'Messages', icon: 'chatbubble-ellipses-outline', path: '/messages' },
-  { label: 'Profil', icon: 'person-outline', path: '/profile' },
+  { label: 'Mon profil', icon: 'person-outline', path: '/profile' },
 ];
 
 export function TopNavigation() {
-  const pathname = usePathname();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const unread = useUnreadMessages();
   const notifications = useUnreadNotifications();
-  const unreadCount = (unread.data ?? []).reduce((total, item) => total + item.unread_count, 0);
   return <View style={styles.header}>
     <View style={styles.headerTop}>
-      <View style={styles.brandActions}>
-        <Brand small />
-        <IconButton icon="ellipsis-horizontal" label="Plus d’options" onPress={() => setMenuOpen((open) => !open)} />
-      </View>
+      <Brand small />
       <View style={styles.headerActions}>
-        <IconButton icon="search-outline" label="Rechercher" onPress={() => router.replace('/explore')} />
-        <IconButton icon="chatbubble-ellipses-outline" label={unreadCount ? `Messages, ${unreadCount} non lus` : 'Messages'} badgeCount={unreadCount} onPress={() => router.replace('/messages')} />
         <IconButton icon="notifications-outline" label={notifications.data ? `Notifications, ${notifications.data} non lues` : 'Notifications'} badgeCount={notifications.data ?? 0} onPress={() => router.push('/notifications')} />
       </View>
     </View>
-    {menuOpen && <Pressable style={styles.moreMenu} accessibilityRole="button" onPress={() => {
-      setMenuOpen(false);
-      router.push({ pathname: '/settings/support/new', params: { screen: pathname } });
-    }}><Ionicons name="alert-circle-outline" size={19} color={colors.blue} /><Text style={styles.moreMenuText}>Signaler un problème</Text></Pressable>}
     <MainNavigation />
   </View>;
 }
 
 function MainNavigation() {
   const pathname = usePathname();
+  const unread = useUnreadMessages();
+  const unreadCount = (unread.data ?? []).reduce((total, item) => total + item.unread_count, 0);
   return <View style={styles.navRow}>
     {navigation.map((item) => {
       const active = pathname === item.path;
       const publish = item.path === '/create';
-      return <Pressable key={item.path} onPress={() => { if (!active) router.replace(item.path); }} accessibilityRole="tab" accessibilityState={{ selected: active }} style={styles.navItem}>
+      return <Pressable key={item.path} onPress={() => { if (!active) router.replace(item.path); }} accessibilityRole="tab" accessibilityLabel={item.path === '/messages' && unreadCount ? `${item.label}, ${unreadCount} non lus` : item.label} accessibilityState={{ selected: active }} style={styles.navItem}>
         <View style={publish ? styles.publishIcon : styles.navIcon}>
           <Ionicons name={item.icon} size={publish ? 25 : 21} color={publish ? colors.white : active ? colors.orange : colors.blue} />
+          {item.path === '/messages' && unreadCount > 0 && <View style={styles.navBadge}><Text style={styles.navBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text></View>}
         </View>
-        <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
+        <Text numberOfLines={1} style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
       </Pressable>;
     })}
   </View>;
@@ -238,10 +228,7 @@ const styles = StyleSheet.create({
   authSafe: { flex: 1, backgroundColor: colors.white },
   header: { backgroundColor: colors.white, borderBottomColor: colors.border, borderBottomWidth: 1, zIndex: 1 },
   headerTop: { height: 60, maxWidth: 820, width: '100%', alignSelf: 'center', paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  brandActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  moreMenu: { position: 'absolute', zIndex: 5, top: 55, left: 14, backgroundColor: colors.white, borderColor: colors.divider, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 9, elevation: 5 },
-  moreMenuText: { color: colors.navy, fontWeight: '600' },
   brandWrap: { alignSelf: 'center' },
   brandWrapSmall: { alignSelf: 'flex-start' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
@@ -250,8 +237,10 @@ const styles = StyleSheet.create({
   navRow: { height: 64, maxWidth: 820, width: '100%', alignSelf: 'center', flexDirection: 'row', paddingHorizontal: spacing.sm, borderTopWidth: 1, borderTopColor: colors.divider },
   navItem: { flex: 1, minWidth: 44, alignItems: 'center', justifyContent: 'center', gap: 2 },
   navIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  navBadge: { position: 'absolute', right: -9, top: -3, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  navBadgeText: { color: colors.white, fontSize: 10, fontWeight: '700' },
   publishIcon: { width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
-  navText: { color: colors.blue, fontSize: 14 },
+  navText: { color: colors.blue, fontSize: 12, lineHeight: 17, textAlign: 'center' },
   navTextActive: { color: colors.orange, fontWeight: '700' },
   scrollContent: { paddingBottom: 40 },
   content: { maxWidth: 680, width: '100%', alignSelf: 'center', padding: spacing.lg, gap: spacing.xxl },
