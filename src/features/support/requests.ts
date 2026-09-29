@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import { prepareImage } from '@/features/media/prepare-image';
 import { supabase } from '@/services/supabase/client';
 import type { SupportCategory } from '@/constants/support';
+import { logger } from '@/services/logger';
 
 export type SupportRequestInput = {
   userId: string;
@@ -36,9 +37,10 @@ export async function createSupportRequest(input: SupportRequestInput) {
     screenshotPath = `${input.userId}/${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}.jpg`;
     const { error } = await client.storage.from('support-screenshots')
       .upload(screenshotPath, bytes, { contentType: 'image/jpeg', upsert: false });
-    if (error) throw new Error('Impossible d’envoyer la capture d’écran.');
+    if (error) { logger.error('media.upload_failed', { error, context: { bucket: 'support-screenshots', operation: 'support_request' } }); throw new Error('Impossible d’envoyer la capture d’écran.'); }
   }
 
+  await logger.flush();
   const { data, error } = await client.from('support_requests').insert({
     user_id: input.userId,
     category: input.category,
@@ -52,6 +54,7 @@ export async function createSupportRequest(input: SupportRequestInput) {
     screenshot_path: screenshotPath,
   }).select('id').single();
   if (error || !data) {
+    logger.error('support.request_failed', { error, context: { operation: 'create_support_request' } });
     if (screenshotPath) await client.storage.from('support-screenshots').remove([screenshotPath]);
     throw new Error('Impossible d’envoyer la demande. Réessayez.');
   }

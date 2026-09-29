@@ -6,6 +6,7 @@ import { AuthScreen, Brand, Field, PrimaryButton } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
 import { completePendingProfessionalRegistration, getPendingProfessionalRegistration } from '@/features/auth/professional-registration';
 import { supabase } from '@/services/supabase/client';
+import { logger } from '@/services/logger';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -17,18 +18,20 @@ export default function LoginScreen() {
     setBusy(true); setMessage('');
     try {
       const { error, data } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) { setMessage(error.message); return; }
+      if (error) { logger.warn('auth.sign_in_failed', { error, context: { operation: 'sign_in', error_code: error.code ?? 'unknown' } }); setMessage(error.message); return; }
       const pending = await getPendingProfessionalRegistration(data.user?.email);
       if (pending) {
         try {
           await completePendingProfessionalRegistration(data.user?.email);
         } catch (registrationError) {
+          logger.error('edge.professional_registration_failed', { error: registrationError, context: { operation: 'register_professional' } });
           Alert.alert('Inscription professionnelle', registrationError instanceof Error
             ? registrationError.message : 'La vérification du SIRET a échoué.');
         }
       }
       router.replace(pending ? '/profile' : '/home');
     } catch (error) {
+      logger.error('auth.sign_in_failed', { error, context: { operation: 'sign_in' } });
       setMessage(error instanceof Error ? error.message : 'Connexion temporairement indisponible.');
     } finally {
       setBusy(false);

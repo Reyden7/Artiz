@@ -4,6 +4,7 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/typography';
 import { AppScreen, Field, PrimaryButton } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
+import { logger } from '@/services/logger';
 import { useAuth } from '@/features/auth/auth-context';
 import { openConversation } from '@/features/messaging/conversations';
 import { supabase } from '@/services/supabase/client';
@@ -51,6 +52,7 @@ export default function QuoteScreen() {
       if (messageError) throw messageError;
       router.replace(`/conversation/${conversationId}`);
     } catch (error) {
+      logger.error('quote.send_failed', { error, context: { operation: 'send_quote' } });
       Alert.alert('Demande non envoyée', error instanceof Error ? error.message : 'Réessayez plus tard.');
     } finally {
       setBusy(false);

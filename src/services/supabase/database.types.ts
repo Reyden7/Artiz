@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_logs: {
+        Row: {
+          id: string
+          user_id: string | null
+          level: string
+          message: string
+          context: Json
+          error_name: string | null
+          error_message: string | null
+          stack_trace: string | null
+          correlation_id: string | null
+          route: string | null
+          platform: string | null
+          app_version: string | null
+          build_version: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          level: string
+          message: string
+          context?: Json
+          error_name?: string | null
+          error_message?: string | null
+          stack_trace?: string | null
+          correlation_id?: string | null
+          route?: string | null
+          platform?: string | null
+          app_version?: string | null
+          build_version?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          level?: string
+          message?: string
+          context?: Json
+          error_name?: string | null
+          error_message?: string | null
+          stack_trace?: string | null
+          correlation_id?: string | null
+          route?: string | null
+          platform?: string | null
+          app_version?: string | null
+          build_version?: string | null
+          created_at?: string
+        }
+        Relationships: [{
+          foreignKeyName: "app_logs_user_id_fkey"
+          columns: ["user_id"]
+          isOneToOne: false
+          referencedRelation: "profiles"
+          referencedColumns: ["id"]
+        }]
+      }
       comment_mentions: {
         Row: {
           comment_id: string
@@ -59,18 +116,21 @@ export type Database = {
       conversation_members: {
         Row: {
           conversation_id: string
+          hidden_at: string | null
           joined_at: string
           last_read_at: string | null
           user_id: string
         }
         Insert: {
           conversation_id: string
+          hidden_at?: string | null
           joined_at?: string
           last_read_at?: string | null
           user_id: string
         }
         Update: {
           conversation_id?: string
+          hidden_at?: string | null
           joined_at?: string
           last_read_at?: string | null
           user_id?: string
@@ -1084,6 +1144,15 @@ export type Database = {
             referencedRelation: "professional_profiles"
             referencedColumns: ["user_id"]
           },
+        ]
+      }
+      support_request_logs: {
+        Row: { support_request_id: string; app_log_id: string }
+        Insert: { support_request_id: string; app_log_id: string }
+        Update: { support_request_id?: string; app_log_id?: string }
+        Relationships: [
+          { foreignKeyName: "support_request_logs_support_request_id_fkey"; columns: ["support_request_id"]; isOneToOne: false; referencedRelation: "support_requests"; referencedColumns: ["id"] },
+          { foreignKeyName: "support_request_logs_app_log_id_fkey"; columns: ["app_log_id"]; isOneToOne: false; referencedRelation: "app_logs"; referencedColumns: ["id"] },
         ]
       }
       support_requests: {

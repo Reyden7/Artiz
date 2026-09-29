@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from '@/services/supabase/client';
+import { logger } from '@/services/logger';
 
 const key = 'artiz.pending-professional-registration';
 
@@ -37,6 +38,7 @@ export async function completeProfessionalRegistration(value: PendingProfessiona
     body: { businessName: value.businessName, siret: value.siret },
   });
   if (error) {
+    logger.error('edge.professional_registration_failed', { error, context: { operation: 'register_professional' } });
     // The server may have committed the transaction before the response was lost.
     const { data: profile } = await supabase.from('professional_profiles')
       .select('verification_status').eq('user_id', user.id).maybeSingle();

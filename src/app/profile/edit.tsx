@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-nat
 import { AppScreen, Field, PrimaryButton } from '@/components/artiz-ui';
 import { Text } from '@/components/typography';
 import { colors } from '@/constants/artiz';
+import { logger } from '@/services/logger';
 import { useAuth } from '@/features/auth/auth-context';
 import { avatarUrl, uploadAvatar } from '@/features/profiles/avatars';
 import { supabase } from '@/services/supabase/client';
@@ -76,6 +77,7 @@ export default function EditProfileScreen() {
       Alert.alert('Profil enregistré');
       router.back();
     } catch (error) {
+      logger.error('profile.update_failed', { error, context: { operation: 'update_profile' } });
       if (uploaded) await supabase.storage.from('avatars').remove([uploaded]);
       if (businessSaved) await queryClient.invalidateQueries({ queryKey: ['professional', userId] });
       Alert.alert(businessSaved ? 'Enregistrement partiel' : 'Enregistrement impossible',

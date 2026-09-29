@@ -9,6 +9,7 @@ import { colors } from '@/constants/artiz';
 import { useAuth } from '@/features/auth/auth-context';
 import { avatarUrl } from '@/features/profiles/avatars';
 import { supabase } from '@/services/supabase/client';
+import { logger } from '@/services/logger';
 
 type Mention = { user_id: string; start_cp: number; length_cp: number };
 type RenderMention = Mention & { label: string; account_type: string };
@@ -148,6 +149,7 @@ export default function PostScreen() {
     const { data, error } = await supabase.from('posts').delete().eq('id', id).eq('author_id', userId)
       .select('id').maybeSingle();
     if (error || !data) {
+      logger.error('post.delete_failed', { error, context: { operation: 'delete_post', step: 'delete_record' } });
       setBusy(false);
       Alert.alert('Suppression impossible', 'Cette publication n’a pas pu être supprimée.');
       return;
@@ -157,7 +159,7 @@ export default function PostScreen() {
     await queryClient.invalidateQueries({ queryKey: ['posts-feed'] });
     await queryClient.invalidateQueries({ queryKey: ['professional', userId] });
     router.replace('/home');
-    if (cleanup?.error) Alert.alert('Publication supprimée', 'Certaines photos n’ont pas pu être effacées du stockage.');
+    if (cleanup?.error) { logger.warn('media.cleanup_failed', { error: cleanup.error, context: { operation: 'delete_post', bucket: 'post-images' } }); Alert.alert('Publication supprimée', 'Certaines photos n’ont pas pu être effacées du stockage.'); }
   }
 
   return <AppScreen title="Publication" keyboardExtraSpace={150}>
@@ -169,7 +171,7 @@ export default function PostScreen() {
             {post.data.author_id === userId && <Pressable accessibilityRole="button" accessibilityLabel="Options de ma publication" onPress={() => { setOwnerMenuOpen((open) => !open); setConfirmDelete(false); }}><Text style={styles.ellipsis}>⋯</Text></Pressable>}
           </View>
           {post.data.author_id === userId && ownerMenuOpen && <View style={styles.ownerMenu}>
-            <Pressable onPress={() => router.push({ pathname: '/post/edit/[id]', params: { id } })}><Text style={styles.link}>Modifier</Text></Pressable>
+            <Pressable onPress={() => router.push({ pathname: '/post/edit/[id]', params: { id: post.data!.id } })}><Text style={styles.link}>Modifier</Text></Pressable>
             <Pressable onPress={() => setConfirmDelete(true)}><Text style={styles.destructive}>Supprimer</Text></Pressable>
           </View>}
           {post.data.author_id === userId && confirmDelete && <View style={styles.deleteConfirm}>

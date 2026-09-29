@@ -6,6 +6,7 @@ import { Text } from '@/components/typography';
 import { AppScreen, Field, PrimaryButton } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
 import { supabase } from '@/services/supabase/client';
+import { logger } from '@/services/logger';
 
 type Review = {
   user_id: string;
@@ -46,7 +47,7 @@ export default function PendingProfessionalsScreen() {
       if (!supabase) return;
       const { data, error } = await supabase.functions.invoke('review-professionals', { method: 'GET' });
       if (!active) return;
-      if (error) setMessage(await errorMessage(error));
+      if (error) { logger.error('edge.review_professionals_failed', { error, context: { operation: 'load_reviews' } }); setMessage(await errorMessage(error)); }
       else { setPending((data as { pending: Review[] }).pending); setMessage(''); }
       setLoading(false);
     }
@@ -61,7 +62,7 @@ export default function PendingProfessionalsScreen() {
     const { error } = await supabase.functions.invoke('review-professionals', {
       body: { professionalId: item.user_id, decision, note: note.trim() },
     });
-    if (error) setMessage(await errorMessage(error));
+    if (error) { logger.error('edge.review_professionals_failed', { error, context: { operation: 'review_professional' } }); setMessage(await errorMessage(error)); }
     else {
       setPending((current) => current.filter((candidate) => candidate.user_id !== item.user_id));
       setSelectedId(null);

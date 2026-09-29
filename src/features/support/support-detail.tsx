@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-nat
 import { AppScreen, EmptyState, Field, PrimaryButton } from '@/components/artiz-ui';
 import { Text } from '@/components/typography';
 import { colors } from '@/constants/artiz';
+import { LogEntry } from '@/features/logging/log-entry';
 import { SUPPORT_CATEGORIES, SUPPORT_PRIORITIES, SUPPORT_STATUSES, SUPPORT_STATUS_LABELS, type SupportCategory, type SupportPriority, type SupportStatus } from '@/constants/support';
 import { supabase } from '@/services/supabase/client';
 
@@ -31,6 +32,20 @@ export function SupportDetail({ admin = false }: { admin?: boolean }) {
     queryFn: async () => {
       if (!supabase || !id) return null;
       const { data, error } = await supabase.from('support_requests').select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const linkedLogs = useQuery({
+    queryKey: ['support-request-logs', id], enabled: Boolean(admin && supabase && id && request.data),
+    queryFn: async () => {
+      if (!supabase || !id) return [];
+      const { data: links, error: linkError } = await supabase.from('support_request_logs')
+        .select('app_log_id').eq('support_request_id', id);
+      if (linkError) throw linkError;
+      if (!links.length) return [];
+      const { data, error } = await supabase.from('app_logs').select('*')
+        .in('id', links.map((link) => link.app_log_id)).order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -188,6 +203,13 @@ export function SupportDetail({ admin = false }: { admin?: boolean }) {
           {message && <Text style={styles.error}>{message}</Text>}
         </>}
       </View>}
+    {admin && item && <View style={styles.logs}>
+      <Text style={styles.title}>Journaux techniques associés</Text>
+      {linkedLogs.isPending ? <ActivityIndicator color={colors.blue} />
+        : linkedLogs.error ? <Text style={styles.error}>Impossible de charger les journaux.</Text>
+          : linkedLogs.data.length ? linkedLogs.data.map((log) => <LogEntry key={log.id} item={log} />)
+            : <Text style={styles.meta}>Aucun avertissement ou erreur récent n’était disponible lors de la création de cette demande.</Text>}
+    </View>}
   </AppScreen>;
 }
 
@@ -207,4 +229,5 @@ const styles = StyleSheet.create({
   deleteButton: { padding: 14, borderWidth: 1, borderColor: colors.red ?? '#B42318', borderRadius: 12, alignItems: 'center' },
   deleteConfirm: { padding: 14, gap: 10, borderWidth: 1, borderColor: colors.red ?? '#B42318', borderRadius: 12 },
   deleteText: { color: colors.red ?? '#B42318', fontWeight: '700' },
+  logs: { gap: 10 },
 });

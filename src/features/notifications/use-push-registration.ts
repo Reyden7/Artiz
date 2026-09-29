@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import { registerPushForCurrentDevice, resumePushRegistration } from '@/features/notifications/push';
 import { supabase } from '@/services/supabase/client';
+import { logger } from '@/services/logger';
 
 export function usePushRegistration(userId: string | undefined) {
   useEffect(() => {
@@ -24,6 +25,7 @@ export function usePushRegistration(userId: string | undefined) {
         });
         lastError = '';
       } catch (cause) {
+        logger.warn('push.registration_failed', { error: cause, context: { operation: 'register_push' } });
         const message = cause instanceof Error ? cause.message : 'Échec de l’enregistrement push';
         if (__DEV__ && active && message !== lastError) console.warn('Notifications :', message);
         lastError = message;

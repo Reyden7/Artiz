@@ -7,6 +7,7 @@ import { AppScreen, EmptyState, Field, PrimaryButton } from '@/components/artiz-
 import { colors } from '@/constants/artiz';
 import { useAuth } from '@/features/auth/auth-context';
 import { supabase } from '@/services/supabase/client';
+import { logger } from '@/services/logger';
 
 export default function ConversationScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -70,7 +71,7 @@ export default function ConversationScreen() {
     setBusy(true);
     const { error } = await supabase.from('messages').insert({ conversation_id: id, sender_id: session.user.id, body: content });
     setBusy(false);
-    if (error) Alert.alert('Message non envoyé', error.message);
+    if (error) { logger.error('message.send_failed', { error, context: { operation: 'send_message' }, correlationId: logger.newCorrelationId() }); Alert.alert('Message non envoyé', error.message); }
     else {
       setBody('');
       await queryClient.invalidateQueries({ queryKey: ['conversation-messages', id] });

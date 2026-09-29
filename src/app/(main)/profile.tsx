@@ -9,6 +9,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { completeProfessionalRegistration, getPendingProfessionalRegistration, savePendingProfessionalRegistration, type PendingProfessionalRegistration } from '@/features/auth/professional-registration';
 import { registerPushForCurrentDevice, resumePushRegistration, revokePushForCurrentDevice } from '@/features/notifications/push';
 import { supabase } from '@/services/supabase/client';
+import { logger } from '@/services/logger';
 import { avatarUrl } from '@/features/profiles/avatars';
 
 export default function ProfileScreen() {
@@ -29,7 +30,7 @@ export default function ProfileScreen() {
       if (!supabase || !userId) return null;
       const { data, error } = await supabase.from('profiles')
         .select('display_name,bio,city,avatar_path,account_type').eq('id', userId).single();
-      if (error) throw error;
+      if (error) { logger.error('profile.fetch_failed', { error, context: { operation: 'load_my_profile' } }); throw error; }
       return { ...data, avatar: await avatarUrl(data.avatar_path) };
     },
   });
@@ -168,6 +169,7 @@ export default function ProfileScreen() {
     {pending && <View style={styles.card}><Text style={styles.title}>Terminer l’inscription professionnelle</Text><Text style={styles.meta}>Votre compte est créé. Confirmez votre SIRET pour soumettre votre activité à vérification.</Text><Field label="Nom commercial" value={pending.businessName} onChangeText={(businessName) => setPending({ ...pending, businessName })} /><Field label="SIRET" value={pending.siret} onChangeText={(siret) => setPending({ ...pending, siret })} keyboardType="number-pad" maxLength={14} /><PrimaryButton title={busy ? 'Vérification…' : 'Vérifier mon SIRET'} onPress={retryProfessionalRegistration} disabled={busy || pending.businessName.trim().length < 2 || !/^\d{14}$/.test(pending.siret)} />{message ? <Text style={styles.meta}>{message}</Text> : null}</View>}
     {isAdmin && <Pressable style={styles.row} onPress={() => router.push('/admin/professionals')}><Text style={styles.rowText}>Professionnels en attente</Text><Text style={styles.arrow}>›</Text></Pressable>}
     {isAdmin && <Pressable style={styles.row} onPress={() => router.push('/admin/support' as Href)}><Text style={styles.rowText}>Demandes de support</Text><Text style={styles.arrow}>›</Text></Pressable>}
+    {isAdmin && <Pressable style={styles.row} onPress={() => router.push('/admin/logs' as Href)}><Text style={styles.rowText}>Journaux techniques</Text><Text style={styles.arrow}>›</Text></Pressable>}
     {verificationStatus === 'verified' && <View style={styles.categoryCard}>
       <Text style={styles.title}>Mes métiers</Text>
       <Text style={styles.meta}>Choisissez les catégories des demandes que vous souhaitez consulter.</Text>

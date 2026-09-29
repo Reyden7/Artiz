@@ -9,6 +9,7 @@ import { AccountType, colors } from '@/constants/artiz';
 import { completeProfessionalRegistration, savePendingProfessionalRegistration } from '@/features/auth/professional-registration';
 import { supabase } from '@/services/supabase/client';
 import { passwordValidationMessage } from '@/features/auth/password-policy';
+import { logger } from '@/services/logger';
 
 export default function RegisterScreen() {
   const [type, setType] = useState<AccountType>('customer');
@@ -38,7 +39,7 @@ export default function RegisterScreen() {
           emailRedirectTo: Linking.createURL('auth/callback'),
         },
       });
-      if (error) { setMessage(error.message); return; }
+      if (error) { logger.warn('auth.sign_up_failed', { error, context: { operation: 'sign_up', error_code: error.code ?? 'unknown' } }); setMessage(error.message); return; }
       if (type === 'professional') {
         const pending = { email: normalizedEmail, businessName: business.trim(), siret };
         await savePendingProfessionalRegistration(pending);
@@ -50,6 +51,7 @@ export default function RegisterScreen() {
           : 'Vérifiez votre boîte e-mail pour confirmer votre inscription.');
       } else router.replace('/profile');
     } catch (error) {
+      logger.error('auth.sign_up_failed', { error, context: { operation: 'sign_up' } });
       setMessage(error instanceof Error ? error.message : 'Inscription temporairement indisponible.');
     } finally {
       setBusy(false);

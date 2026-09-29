@@ -7,6 +7,7 @@ import { Text } from '@/components/typography';
 import { router } from 'expo-router';
 import { Avatar, EmptyState } from '@/components/artiz-ui';
 import { colors } from '@/constants/artiz';
+import { logger } from '@/services/logger';
 import { useAuth } from '@/features/auth/auth-context';
 import { useAccountType } from '@/features/auth/use-account-type';
 import { openConversation } from '@/features/messaging/conversations';
@@ -139,12 +140,14 @@ export default function HomeScreen() {
     setBusyId(post.id);
     const photos = await supabase.from('post_images').select('storage_path').eq('post_id', post.id);
     if (photos.error) {
+      logger.error('post.delete_failed', { error: photos.error, context: { operation: 'delete_post', step: 'load_photos' } });
       setBusyId(null);
       Alert.alert('Suppression impossible', photos.error.message);
       return;
     }
     const removed = await supabase.from('posts').delete().eq('id', post.id).eq('author_id', session.user.id).select('id').maybeSingle();
     if (removed.error || !removed.data) {
+      logger.error('post.delete_failed', { error: removed.error, context: { operation: 'delete_post', step: 'delete_record' } });
       setBusyId(null);
       Alert.alert('Suppression impossible', 'Cette publication n’a pas pu être supprimée.');
       return;
@@ -157,7 +160,7 @@ export default function HomeScreen() {
     queryClient.removeQueries({ queryKey: ['post', post.id] });
     await queryClient.invalidateQueries({ queryKey: ['posts-feed'] });
     await queryClient.invalidateQueries({ queryKey: ['professional', session.user.id] });
-    if (cleanup?.error) Alert.alert('Publication supprimée', 'Certaines photos n’ont pas pu être effacées du stockage.');
+    if (cleanup?.error) { logger.warn('media.cleanup_failed', { error: cleanup.error, context: { operation: 'delete_post', bucket: 'post-images' } }); Alert.alert('Publication supprimée', 'Certaines photos n’ont pas pu être effacées du stockage.'); }
   }
 
   const empty = filters.error || feed.error

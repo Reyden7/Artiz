@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } fro
 import { AppScreen, EmptyState, Field, PrimaryButton } from '@/components/artiz-ui';
 import { Text } from '@/components/typography';
 import { colors } from '@/constants/artiz';
+import { logger } from '@/services/logger';
 import { useAuth } from '@/features/auth/auth-context';
 import { prepareImage } from '@/features/media/prepare-image';
 import { supabase } from '@/services/supabase/client';
@@ -118,6 +119,7 @@ export default function EditPostScreen() {
       router.replace({ pathname: '/post/[id]', params: { id } });
       if (cleanup?.error) Alert.alert('Publication modifiée', 'Certaines anciennes photos n’ont pas pu être effacées du stockage.');
     } catch (error) {
+      logger.error('post.edit_failed', { error, context: { operation: 'edit_post' } });
       if (!committed && uploaded.length) await supabase.storage.from('post-images').remove(uploaded);
       Alert.alert('Modification impossible', error instanceof Error ? error.message : 'Réessayez plus tard.');
     } finally { setBusy(false); setProgress(''); }

@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client';
+import { logger } from '@/services/logger';
 
 export type ConversationContext = 'profile' | 'post' | 'search' | 'quote' | 'request' | 'reply';
 
@@ -24,7 +25,7 @@ export async function openConversation(
     contact_context: context,
     target_request_id: requestId ?? null,
   });
-  if (error) throw error;
+  if (error) { logger.error('conversation.create_failed', { error, context: { operation: 'open_conversation', step: context } }); throw error; }
   if (!data) throw new Error('Conversation indisponible.');
   return data;
 }

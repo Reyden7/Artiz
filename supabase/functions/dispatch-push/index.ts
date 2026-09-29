@@ -31,6 +31,23 @@ function content(delivery: Delivery) {
       ? `/admin/support/${requestId}` : '/admin/support' };
 }
 
+async function recordPushFailure(server: ReturnType<typeof createClient>, deliveryId: string,
+  step: string, error: unknown) {
+  try {
+    const { count } = await server.from('app_logs').select('id', { count: 'exact', head: true })
+      .eq('correlation_id', deliveryId).eq('message', 'push.delivery_failed')
+      .gte('created_at', new Date(Date.now() - 3600_000).toISOString());
+    if (count) return;
+    await server.from('app_logs').insert({
+      user_id: null, level: 'error', message: 'push.delivery_failed',
+      correlation_id: deliveryId,
+      context: { operation: 'dispatch_push', step },
+      error_name: error instanceof Error ? error.name : 'PushDeliveryError',
+      error_message: error instanceof Error ? error.message : 'Push delivery failed',
+    });
+  } catch { /* Diagnostics must never block push delivery. */ }
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method !== 'POST') return reply(405, { error: 'Method not allowed' });
   const url = Deno.env.get('SUPABASE_URL');
@@ -66,6 +83,8 @@ Deno.serve(async (request: Request) => {
         delivery_id: item.id, result_status: status,
         error_message: receipt.message ?? receipt.details?.error ?? null,
       });
+      if (status === 'failed') await recordPushFailure(server, item.id, 'receipt',
+        new Error(receipt.details?.error ?? 'Expo receipt failed'));
       checked++;
     }
     return reply(200, { checked });
@@ -108,12 +127,15 @@ Deno.serve(async (request: Request) => {
       ticket_id: ticket?.id ?? null,
       error_message: ticket?.message ?? ticket?.details?.error ?? null,
     });
+    if (status !== 'ticketed' && status !== 'disabled') await recordPushFailure(server, delivery.id,
+      'ticket', new Error(ticket?.details?.error ?? 'Expo ticket unavailable'));
     return reply(200, { status });
   } catch (error) {
     await server.rpc('finish_push_delivery', {
       delivery_id: delivery.id, result_status: 'pending', ticket_id: null,
       error_message: error instanceof Error ? error.message : 'Push failed',
     });
+    await recordPushFailure(server, delivery.id, 'send', error);
     return reply(503, { error: 'Push failed' });
   }
 });
