@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/typography';
 import { AuthScreen, Brand, Field, PrimaryButton } from '@/components/artiz-ui';
 import { AccountType, colors } from '@/constants/artiz';
+import { ARTIZ_PRIVACY_URL, ARTIZ_TERMS_URL } from '@/constants/legal';
 import { completeProfessionalRegistration, savePendingProfessionalRegistration } from '@/features/auth/professional-registration';
 import { supabase } from '@/services/supabase/client';
 import { passwordValidationMessage } from '@/features/auth/password-policy';
@@ -22,6 +23,10 @@ export default function RegisterScreen() {
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  async function openLegalPage(url: string) {
+    try { await Linking.openURL(url); }
+    catch { setMessage('Impossible d’ouvrir cette page. Vérifiez votre connexion ou réessayez plus tard.'); }
+  }
   async function signUp() {
     const passwordError = passwordValidationMessage(password, confirm);
     if (passwordError) { setMessage(passwordError); return; }
@@ -66,11 +71,16 @@ export default function RegisterScreen() {
     <Field label="Mot de passe" value={password} onChangeText={setPassword} placeholder="8 caractères, une lettre et un chiffre" secureTextEntry autoComplete="new-password" />
     <Field label="Confirmer le mot de passe" value={confirm} onChangeText={setConfirm} placeholder="Confirmez votre mot de passe" secureTextEntry />
     {type === 'professional' && <><Field label="Nom commercial" value={business} onChangeText={setBusiness} placeholder="Nom de votre entreprise" /><Field label="Numéro de SIRET" value={siret} onChangeText={setSiret} placeholder="14 chiffres" keyboardType="number-pad" maxLength={14} /><Text style={styles.roleHelp}>Le SIRET est contrôlé côté serveur. Le profil reste en attente de vérification avant de pouvoir publier ou répondre aux demandes.</Text></>}
-    <Pressable style={styles.consent} onPress={() => setAccepted(!accepted)} accessibilityRole="checkbox" accessibilityState={{ checked: accepted }}><Ionicons name={accepted ? 'checkbox' : 'square-outline'} size={23} color={colors.blue} /><Text style={styles.consentText}>J’accepte les conditions d’utilisation et la politique de confidentialité.</Text></Pressable>
+    <View style={styles.consent}>
+      <Pressable onPress={() => setAccepted((current) => !current)} style={styles.consentCheckbox} accessibilityRole="checkbox" accessibilityLabel="Accepter les conditions d’utilisation et la politique de confidentialité" accessibilityState={{ checked: accepted }}>
+        <Ionicons name={accepted ? 'checkbox' : 'square-outline'} size={23} color={colors.blue} />
+      </Pressable>
+      <Text style={styles.consentText}>J’accepte les <Text style={styles.legalLink} onPress={() => void openLegalPage(ARTIZ_TERMS_URL)} accessibilityRole="link" accessibilityLabel="Conditions d’utilisation, ouvrir dans le navigateur">Conditions d’utilisation</Text> et la <Text style={styles.legalLink} onPress={() => void openLegalPage(ARTIZ_PRIVACY_URL)} accessibilityRole="link" accessibilityLabel="Politique de confidentialité, ouvrir dans le navigateur">Politique de confidentialité</Text>.</Text>
+    </View>
     {message ? <Text style={styles.message}>{message}</Text> : null}
     <PrimaryButton title={busy ? 'Création…' : 'Créer mon compte'} icon="arrow-forward" onPress={signUp} disabled={busy || !name.trim() || !email.trim() || !password || !confirm || (type === 'professional' && (!business.trim() || siret.length !== 14))} />
     <Text style={styles.bottom}>Déjà un compte ? <Text style={styles.link} onPress={() => router.push('/login')}>Se connecter</Text></Text>
   </AuthScreen>;
 }
 
-const styles = StyleSheet.create({ center: { alignItems: 'center', gap: 8, paddingVertical: 16 }, title: { fontSize: 26, color: colors.navy, fontWeight: '700', marginTop: 12 }, subtitle: { color: colors.muted, fontSize: 15, textAlign: 'center' }, switch: { flexDirection: 'row', backgroundColor: colors.pale, borderRadius: 12, padding: 4 }, choice: { flex: 1, minHeight: 48, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }, selected: { backgroundColor: colors.blue }, choiceText: { color: colors.navy, fontWeight: '600' }, selectedText: { color: colors.white }, roleHelp: { color: colors.muted, fontSize: 13, lineHeight: 20, textAlign: 'center' }, consent: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }, consentText: { color: colors.navy, flex: 1, fontSize: 14, lineHeight: 20 }, message: { backgroundColor: colors.pale, color: colors.blueDark, padding: 12, borderRadius: 8, lineHeight: 20 }, bottom: { textAlign: 'center', color: colors.navy }, link: { color: colors.blue, fontWeight: '700' } });
+const styles = StyleSheet.create({ center: { alignItems: 'center', gap: 8, paddingVertical: 16 }, title: { fontSize: 26, color: colors.navy, fontWeight: '700', marginTop: 12 }, subtitle: { color: colors.muted, fontSize: 15, textAlign: 'center' }, switch: { flexDirection: 'row', backgroundColor: colors.pale, borderRadius: 12, padding: 4 }, choice: { flex: 1, minHeight: 48, borderRadius: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }, selected: { backgroundColor: colors.blue }, choiceText: { color: colors.navy, fontWeight: '600' }, selectedText: { color: colors.white }, roleHelp: { color: colors.muted, fontSize: 13, lineHeight: 20, textAlign: 'center' }, consent: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }, consentCheckbox: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, consentText: { color: colors.navy, flex: 1, fontSize: 14, lineHeight: 20 }, legalLink: { color: colors.blue, fontWeight: '700' }, message: { backgroundColor: colors.pale, color: colors.blueDark, padding: 12, borderRadius: 8, lineHeight: 20 }, bottom: { textAlign: 'center', color: colors.navy }, link: { color: colors.blue, fontWeight: '700' } });
