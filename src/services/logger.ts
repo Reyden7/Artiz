@@ -110,8 +110,12 @@ function record(level: Level, message: string, options: LogOptions = {}) {
   const safeMessage = /^[a-z0-9._-]{3,100}$/.test(message) ? message : 'app.unclassified_event';
   const error = safeError(options.error);
   const platform = Platform.OS === 'android' || Platform.OS === 'ios' ? Platform.OS : 'web';
+  // The installed binary is authoritative when EAS increments versions remotely.
   const nativeBuild = platform === 'android'
-    ? Constants.expoConfig?.android?.versionCode : Constants.expoConfig?.ios?.buildNumber;
+    ? Constants.platform?.android?.versionCode ?? Constants.expoConfig?.android?.versionCode
+    : platform === 'ios'
+      ? Constants.platform?.ios?.buildNumber ?? Constants.expoConfig?.ios?.buildNumber
+      : null;
   const entry: TechnicalLog = {
     level, message: safeMessage, context: safeContext(options.context),
     user_id: activeUserId,

@@ -67,6 +67,7 @@ function AppNavigator() {
       <Stack.Screen name="admin/support/[id]" />
       <Stack.Screen name="admin/logs" />
       <Stack.Screen name="settings/index" />
+      <Stack.Screen name="settings/delete-account" />
       <Stack.Screen name="settings/support/index" />
       <Stack.Screen name="settings/support/new" />
       <Stack.Screen name="settings/support/requests" />

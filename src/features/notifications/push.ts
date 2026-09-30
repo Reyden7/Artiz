@@ -136,3 +136,21 @@ export function revokePushForCurrentDevice(): Promise<void> {
     }
   });
 }
+
+// Auth deletion cascades push_tokens on the server. Only clear device state
+// here, after the server has confirmed deletion, so another account cannot
+// inherit a stale registration or notification response.
+export function clearPushRegistrationAfterAccountDeletion(): Promise<void> {
+  suspended = true;
+  return enqueue(async () => {
+    latestToken = null;
+    await AsyncStorage.multiRemove([storedRegistrationKey, storedTokenKey, pendingTokenKey]);
+    if (Platform.OS !== 'web' && Constants.appOwnership !== 'expo') {
+      try {
+        const Notifications = await import('expo-notifications');
+        Notifications.clearLastNotificationResponse();
+        await Notifications.dismissAllNotificationsAsync();
+      } catch { /* Local notification cleanup is best effort. */ }
+    }
+  });
+}

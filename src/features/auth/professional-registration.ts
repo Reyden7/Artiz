@@ -5,6 +5,10 @@ import { logger } from '@/services/logger';
 
 const key = 'artiz.pending-professional-registration';
 
+export async function clearPendingProfessionalRegistration() {
+  await AsyncStorage.removeItem(key);
+}
+
 export type PendingProfessionalRegistration = {
   email: string;
   businessName: string;

@@ -9,10 +9,12 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "fr.artiz.mobile",
+      "buildNumber": "1",
       "icon": "./assets/artiz/logo-2026.png"
     },
     "android": {
       "package": "fr.artiz.mobile",
+      "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",

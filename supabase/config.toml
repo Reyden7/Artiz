@@ -385,6 +385,9 @@ deno_version = 2
 # The function authenticates the database webhook with a Vault secret.
 verify_jwt = false
 
+[functions.delete-account]
+verify_jwt = true
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
